@@ -1,0 +1,987 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+# Hard-coded here for speed, but might get out of sync with actual supported
+# hooks if git gets new hooks in future versions. See check-support for details.
+GITHOOKS=(
+    applypatch-msg
+    pre-applypatch
+    post-applypatch
+    pre-commit
+    prepare-commit-msg
+    commit-msg
+    post-commit
+    pre-rebase
+    post-checkout
+    post-merge
+    pre-push
+    pre-receive
+    update
+    post-receive
+    post-update
+    push-to-checkout
+    pre-auto-gc
+    post-rewrite
+)
+
+# HELP
+#############################################
+read -r -d '' HELP <<'HELP' || :
+git-hooks - A tool for managing and invoking custom git hook scripts.
+
+Description:
+    git-hooks is a tool to facilitate git hook management, specifically being
+    able to store your hooks within the repository itself and simply reference
+    them from a multiplexer hook installed in the .git/hooks directory.
+
+    The expected usage is to write an arbitrary number of individual hook
+    scripts associated with a single standard git hook and store them in the
+    .githooks directory. When git invokes the multiplexer script in .git/hooks,
+    it will call your custom scripts sequentially, or in parallel if you
+    configure it to do so.
+
+    This way you can break your monolithic hooks into individual files, giving
+    you greater flexibility regarding which pieces to run and when.
+
+Installation:
+
+    # Install 'git hooks' as a global alias
+    ./git-hooks install-command --global
+
+    # Install the multiplexers in an existing repository
+    cd <your repo>
+    git hooks install
+
+    # Configure git to automatically install the multiplexers for all new
+    # repos (cloned or init'ed).
+    # Useful when your repos already have a .githooks directory with hook
+    # scripts in it.
+    git hooks install-template
+
+Usage:
+        git hooks  # equivalent to list
+    or: git hooks $(git_hooks__extract_desc list)
+    or: git hooks $(git_hooks__extract_desc check-support)
+    or: git hooks $(git_hooks__extract_desc install)
+    or: git hooks $(git_hooks__extract_desc uninstall)
+    or: git hooks $(git_hooks__extract_desc install-command)
+    or: git hooks $(git_hooks__extract_desc uninstall-command)
+    or: git hooks $(git_hooks__extract_desc install-template)
+    or: git hooks $(git_hooks__extract_desc uninstall-template)
+    or: git hooks $(git_hooks__extract_desc include)
+    or: git hooks $(git_hooks__extract_desc add)
+    or: git hooks $(git_hooks__extract_desc rm)
+    or: git hooks $(git_hooks__extract_desc enable)
+    or: git hooks $(git_hooks__extract_desc disable)
+    or: git hooks $(git_hooks__extract_desc run)
+    or: git hooks $(git_hooks__extract_desc parallel)
+    or: git hooks $(git_hooks__extract_desc show-input)
+    or: git hooks $(git_hooks__extract_desc config)
+    or: git hooks $(git_hooks__extract_desc help)
+
+Files:
+    .githooks/
+        This is where git-hooks will look for default hook scripts. Place your
+        hook scripts in here rather than .git/hooks. Your hook scripts should
+        be executable and follow the naming convention:
+
+            <standard git hook name>-<custom suffix>[.<file extension>]
+
+        Examples: .githooks/pre-commit-style.sh
+                  .githooks/pre-commit-unittest.py
+
+    .git/config
+        git-hooks config settings will be stored in your repository's config
+        file. In the case of a bare repository, the config file is located at
+        ./config.
+
+Common Arguments:
+    <path>...
+        The command accepts a list of path strings.
+
+    <git hook>...
+        The command accepts a list of git hook names. These names should only
+        include the names of the standard git hooks:
+
+$(echo ${GITHOOKS[*]} | xargs -L1 -n1 | sed 's/^/            /g')
+
+    <custom script name>...
+        The command accepts a list of hook script names. These names may
+        indicate scripts in the repo's .githooks directory, or external
+        scripts installed via 'git-hooks add'. Standard git hook names are
+        not considered valid items in this list.
+
+Operations:
+$(git_hooks__extract_help)
+
+Writing custom git hook scripts:
+
+    Once "git-hooks install" has been called for your repository, creating and
+    installing your own hooks is a simple matter of placing them in the newly-
+    created .githooks directory. Your hooks must follow a particular naming
+    convention:
+
+        <standard git hook name>-<custom suffix>
+
+    When a git hook is invoked it will look for your hooks scripts with the
+    corresponding prefix and call them according to your config. By default
+    your scripts will be run sequentially in alphabetical order as they appear
+    in the .githooks directory.
+
+    You may also add external scripts using the "git-hooks add" command. These
+    scripts need to follow the same naming convention as above, but cannot
+    reside in the .githooks directory. These scripts will run after the ones
+    found in .githooks and will be run sequentially in the order they appear
+    in the .git/config file.
+
+    Setting the parallel option (see above) will cause all scripts to be run
+    concurrently without regard to their conventional order.
+
+    Preventing parallel execution:
+
+        If your script cannot be run in parallel with another of the same
+        git hook family, you may enforce this by calling the exported function
+        "prevent-parallel" from within your script.
+
+        Example:
+
+        #!/usr/bin/env bash
+        prevent-parallel   # Will exit the hook with a non-zero exit code
+                           # unless it is being run sequentially.
+
+HELP
+
+# Globals
+#############################################
+
+# Store the full path of this file
+BASH_SOURCE_DIR=$(cd $(dirname $BASH_SOURCE) && pwd)
+BASH_SOURCE_FULL=$BASH_SOURCE_DIR/$(basename $BASH_SOURCE)
+
+# Populated in _verify_dirs
+GITDIR=$(git rev-parse --git-dir 2>/dev/null) || :
+REPO=$(git rev-parse --show-toplevel 2>/dev/null) || :
+BARE=$(git rev-parse --is-bare-repository 2>/dev/null) || :
+if $BARE; then
+    TOPDIR=$GITDIR
+    HOOKSDIR=$TOPDIR/.githooks
+elif [[ -n $REPO ]]; then
+    TOPDIR=$REPO
+    HOOKSDIR=$TOPDIR/.githooks
+else
+    HOOKSDIR=
+    TOPDIR=
+fi
+
+# What command were we given?
+COMMAND=${1:-list}; shift || :
+
+# Functions
+#############################################
+
+function git_hooks__extract_hook_names_from_man_page {
+    man githooks 2>/dev/null | grep -E '^ {0,4}[-a-z]+$'
+}
+
+function git_hooks__require_git_dir {
+    if [[ -z $GITDIR ]]; then
+        echo ".git directory required but not found" >&2 && return 1
+    fi
+}
+
+function git_hooks__require_work_tree {
+    if [[ -z $REPO ]]; then
+        echo "Work tree required but not found" >&2 && return 1
+    fi
+}
+
+function git_hooks__require_hook_dir {
+    if [[ -z $HOOKSDIR ]]; then
+        echo ".githooks directory required but not found" >&2 && return 1
+    fi
+}
+
+function git_hooks__is_git_hook {
+    local hook name=$1
+    for hook in ${GITHOOKS[@]}; do
+        [[ $hook == $name ]] && return 0
+    done
+    return 1
+}
+
+function git_hooks__git_hook_prefix {
+    local hook name=$1
+    for hook in ${GITHOOKS[@]}; do
+        (echo $name | grep -q ^"$hook-") && echo $hook && return 0
+    done
+    return 1
+}
+
+function git_hooks__extract_desc {
+    echo "$1 $(git_hooks__extract_doc -a git_hooks_${1//-/_} | sed 's/^\s*//g')"
+}
+
+function git_hooks__extract_help {
+    local cmd
+    while read cmd; do
+        printf "\n    %s\n" "$(git_hooks__extract_desc $cmd)"
+        git_hooks__extract_doc -h git_hooks_${cmd//-/_} | sed 's/^/    /g'
+    done < <(grep '$(git_hooks__extract_desc [-a-zA-Z0-9]\+)$' ${BASH_SOURCE} | sed 's/.* \(.*\))/\1/g')
+}
+
+function git_hooks__extract_doc {
+    local doc_type
+
+    eval set -- "$(getopt -o ah -- $@)"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -a) doc_type=ARGS; shift;;
+            -h) doc_type=HELP; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
+
+    type $1 | awk "NR==1,/<<${doc_type}/{next}/^${doc_type}/,NR==0{next}{print}"
+}
+
+function git_hooks_help {
+    : <<HELP
+    Displays this help message.
+HELP
+
+    if [[ -n $1 ]]; then
+        printf "git hooks %s\n" $(git_hooks__extract_desc $1)
+        echo
+        git_hooks__extract_doc -h "git_hooks_${1//-/_}"
+    else
+        if [[ -t 1 ]]; then
+            eval "echo \"$HELP\"" | less
+        else
+            eval "echo \"$HELP\""
+        fi
+    fi
+}
+
+function git_hooks_install {
+    : <<ARGS
+    [-e|--examples] [--no-preserve]
+ARGS
+    : <<HELP
+    Installs the multiplexer hooks into the .git/hooks directory.
+    These scripts are the core of the git-hooks functionality.
+    They are responsible for running any configured custom scripts
+    according to your specifications (sequential vs parallel,
+    disabled, etc.). This operation alse creates the .githooks
+    directory and moves any existing hooks into it. Any scripts
+    moved in this process will receive the "-moved" suffix.
+
+    If --examples is specified, an active example script will be
+    created in the new .githooks directory.
+
+    If --no-preserve is specified, no existing hook scripts in
+    .git/hooks will be moved to the .githooks directory with the
+    "-moved" suffix.
+HELP
+
+    local link item answer firsttime examples=false no_preserve=false
+
+    eval set -- "$(getopt -o e --long examples,no-preserve -- $@)"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -e|--examples) examples=true; shift;;
+            --no-preserve) no_preserve=true; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
+
+    # Create hooks alias if not already present
+    if ! git hooks &>/dev/null; then
+        git_hooks_install_command
+    fi
+
+    # Create the .git/hooks and .githooks directories
+    mkdir -p $GITDIR/hooks $HOOKSDIR
+
+    # Move existing hooks to .githooks dir
+    $no_preserve || echo "Moving existing hooks to $HOOKSDIR..."
+    shopt -s nullglob
+    for item in $GITDIR/hooks/*; do
+        if ! [[ -h $item && $(readlink $item) =~ git-hooks-multiplexer ]]; then
+            if $no_preserve; then
+                rm -f $item
+            else
+                mv -v $item $HOOKSDIR/$(basename $item)-moved | sed "s/^/    /"
+            fi
+        fi
+    done
+    shopt -u nullglob
+
+    echo "Installing multiplexers..."
+    for hook in ${GITHOOKS[*]}; do
+        item=$GITDIR/hooks/$hook
+        if ! [[ -h $item && $(readlink $item) =~ git-hooks-multiplexer ]]; then
+            ln -isv $BASH_SOURCE_DIR/git-hooks-multiplexer $GITDIR/hooks/$hook
+        fi
+    done
+
+    # Sample script to demonstrate new hook functionality
+    if $examples; then
+        if $BARE; then
+            echo "Installing example hook: $HOOKSDIR/pre-receive-report..."
+            cat <<EOF >$HOOKSDIR/pre-receive-report
+#!/usr/bin/env bash
+cat <<MESSAGE
+------------------------------------------------------------------------
+This is an example hook to demonstrate pre-receive hook functionality.
+If you are seeing this, it means you have successfully installed the
+hooks for this repository. Disable it like this:
+
+    git hooks disable pre-receive-report
+
+or just delete the file (.githooks/pre-receive-report).
+------------------------------------------------------------------------
+
+MESSAGE
+
+echo "Displaying stdin:"
+echo "-----------------"
+cat
+echo
+
+EOF
+            chmod +x $HOOKSDIR/pre-receive-report
+        else
+            echo "Installing example hook: $HOOKSDIR/commit-msg-jira..."
+            cat <<EOF >$HOOKSDIR/commit-msg-jira
+#!/usr/bin/env bash
+
+cat <<MESSAGE
+------------------------------------------------------------------------
+This is an example hook to demonstrate commit-msg hook functionality.
+If you are seeing this, it means you have successfully installed the
+hooks for this repository. Disable it like this:
+
+    git hooks disable commit-msg-jira
+
+or just delete the file (.githooks/commit-msg-jira).
+------------------------------------------------------------------------
+
+MESSAGE
+
+# Fails unless the JIRA- prefix is found in the commit msg
+if ! grep "JIRA-[[:digit:]]\+" &>/dev/null <$1; then
+    echo "You must provide a JIRA-#### ticket number in your commit message."
+    exit 1
+fi
+EOF
+            chmod +x $HOOKSDIR/commit-msg-jira
+        fi
+    fi
+}
+
+function git_hooks_uninstall {
+    : <<HELP
+    Removes the multiplexer hooks from the .git/hooks directory and
+    removes the 'hooks' alias from the repo's config, if present.
+HELP
+
+    # Remove hooks alias if present in repo config
+    git_hooks_uninstall_command
+
+    echo "Removing multiplexers..."
+    for hook in $GITDIR/hooks/*; do
+        if [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
+            rm -v $hook
+        fi
+    done
+}
+
+function git_hooks_install_command {
+    : <<ARGS
+    [--global] [--core]
+ARGS
+    : <<HELP
+    Installs 'git-hooks' command into any of three locations.
+        --global: Add it to the global git aliases
+        --core: Links this file into this machine's git core
+                directory. Any 'hooks' aliases will no longer be
+                effective.
+
+    If neither --global nor --core are specified, the alias will be
+    installed into the repo's local git config.
+HELP
+
+    local token repo=false global=false core=false choice
+
+    for token in "$@"; do
+        case $token in
+            --global) shift; global=true;;
+            --core) shift; core=true;;
+            *) echo "Unknown option: $token"; return 1;;
+        esac
+    done
+    $global || $core || repo=true
+
+    if $repo; then
+        git config alias.hooks "!$BASH_SOURCE_FULL" && \
+            echo "Added \"hooks\" to your repository's aliases."
+    fi
+
+    if $global; then
+        git config --global alias.hooks "!$BASH_SOURCE_FULL" && \
+            echo "Added \"hooks\" to your global aliases."
+    fi
+
+    if $core; then
+        echo "This will supercede any \"hooks\" aliases on this machine."
+        echo -n "Continue? (y/N) "
+        read choice
+        case $choice in
+            y|Y) ln -isv "$BASH_SOURCE_FULL" "$(git --exec-path)" || \
+                ( \
+                    echo "Could not link to $(git --exec-path)/git-hooks" && \
+                    return 1 \
+                )
+                ;;
+        esac
+    fi
+}
+
+function git_hooks_install_template {
+    : <<HELP
+    Installs the multiplexer scripts into ~/.gittemplate/hooks (or
+    into the location defined by the init.templatedir config value).
+    This will cause any subsequently cloned or created repositories to
+    automatically populate their .git/hooks directories. To update
+    previously cloned repositories, just run 'git init' again.
+HELP
+
+    local templatedir
+
+    if ! templatedir=$(git config --global init.templatedir); then
+        templatedir=~/.gittemplate
+        echo "Setting 'init.templatedir = $templatedir' your global git config..."
+        git config --global --path init.templatedir $templatedir
+    fi
+
+    echo -e "\nAdding multiplexer hooks to $templatedir/hooks directory..."
+    mkdir -p $templatedir/hooks
+    pushd $templatedir/hooks >/dev/null
+    for hook in ${GITHOOKS[*]}; do
+        if ! [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
+            ln -is $BASH_SOURCE_DIR/git-hooks-multiplexer $hook
+        fi
+    done
+    popd >/dev/null
+
+    echo -e "\nAdding 'git hooks' alias to $templatedir/config..."
+    touch $templatedir/config
+    git config -f $templatedir/config alias.hooks !$BASH_SOURCE_FULL
+
+    cat <<EOF
+
+These multiplexer hooks and the 'git hooks' alias will be installed on any new
+repos created or cloned on this system  To enable this behavior for already
+existing repos, run 'git init' in those repos again.
+EOF
+}
+
+function git_hooks_uninstall_command {
+    : <<ARGS
+    [--global] [--core]
+ARGS
+    : <<HELP
+    Clears the 'git-hooks' command from the specified location.
+        --global: Remove it from the global aliases
+        --core: Delete the git-hooks link from this machine's git
+                core directory.
+
+    If neither --global nor --core are specified, the alias will be
+    removed from the repo's local git config.
+HELP
+    local token repo=false global=false core=false choice
+    for token in "$@"; do
+        case $token in
+            --global) shift; global=true;;
+            --core) shift; core=true;;
+            *) echo "Unknown option: $token"; return 1;;
+        esac
+    done
+    $global || $core || repo=true
+
+    if $repo; then
+        git config --unset alias.hooks && \
+            echo "Removed from your repository's aliases."
+    fi
+
+    if $global; then
+        git config --global --unset alias.hooks && \
+            echo "Removed from your global aliases."
+    fi
+
+    if $core && [[ -e "$(git --exec-path)/git-hooks" ]]; then
+        echo "This will remove 'git hooks' from this machine."
+        echo -n "Continue? (y/N) "
+        read choice
+        case $choice in
+            y|Y) rm "$(git --exec-path)/git-hooks" && \
+                echo "Deleted $(git --exec-path)/git-hooks" || \
+                echo "Could not remove from $(git --exec-path)";;
+        esac
+    fi
+}
+
+function git_hooks_uninstall_template {
+    : <<HELP
+    Undoes the effects of 'install-template'.
+HELP
+    local templatedir
+    if templatedir=$(git config --global init.templatedir); then
+        if [[ -d $templatedir/hooks ]]; then
+            echo "Removing multiplexer hooks from $templatedir/hooks directory..."
+            pushd $templatedir/hooks >/dev/null
+
+            for hook in ${GITHOOKS[*]}; do
+                [[ -h $hook ]] && rm -i $hook
+            done
+
+            popd >/dev/null
+        fi
+
+        if [[ -f $templatedir/config ]]; then
+            echo -e "\nRemoving 'git hooks' alias from $templatedir/config..."
+            git config -f $templatedir/config --unset alias.hooks
+        fi
+    fi
+
+}
+
+function git_hooks_check_support {
+    : <<HELP
+    Checks for differences in the list of hooks supported by
+    git-hooks and the list of hooks supported by git. If differences
+    are present, consider upgrading git-hooks or git.
+HELP
+    local man_hooks=($(git_hooks__extract_hook_names_from_man_page))
+    local known=($(
+        comm --nocheck-order -23 \
+            <(echo ${GITHOOKS[@]} | xargs -n1 | sort) \
+            <(echo ${man_hooks[@]} | xargs -n1 | sort)
+    ))
+    local found=($(
+        comm --nocheck-order -13 \
+            <(echo ${GITHOOKS[@]} | xargs -n1 | sort) \
+            <(echo ${man_hooks[@]} | xargs -n1 | sort)
+    ))
+
+    if [[ -n $known ]]; then
+        echo "These hooks are not supported by your current version of git:"
+        echo ${known[@]} | xargs -n1 | sed 's/^/    /'
+        echo
+    fi
+
+    if [[ -n $found ]]; then
+        echo "These hooks are not yet supported by git-hooks:"
+        echo ${found[@]} | xargs -n1 | sed 's/^/    /'
+        echo
+    fi
+
+    if [[ -z $known && -z $found ]]; then
+        echo "All hooks are currently supported"
+    fi
+}
+
+function git_hooks_list {
+    : <<ARGS
+    [<git hook>...]
+ARGS
+    : <<HELP
+    Lists the currently available custom scripts for each standard git
+    hook. If any are disabled, it is noted in the output.
+HELP
+
+    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook line section path
+
+    for HOOK in ${HOOKS[@]}; do
+        if ! git_hooks__is_git_hook $HOOK; then
+            echo "Hook must be a valid git hook name: $HOOK" >&2
+            continue
+        fi
+
+        disabled=false
+        git config --get-regexp "hooks\.$HOOK\.enabled" false &>/dev/null && disabled=true
+        hooks=
+        if ls $HOOKSDIR/${HOOK}-* &>/dev/null; then
+            for path in $HOOKSDIR/${HOOK}-*; do
+                if [[ -f ${path} && -n ${path%%*~} ]]; then
+                    if git config --get-regexp "hooks\.${path##*/}\.enabled" false &>/dev/null; then
+                        hooks="${hooks:+$hooks\0}$path (disabled)"
+                    elif $disabled;then
+                        hooks="${hooks:+$hooks\0}$path (disabled by $HOOK)"
+                    elif [[ ! -x $path ]]; then
+                        hooks="${hooks:+$hooks\0}$path (not executable)"
+                    else
+                        hooks="${hooks:+$hooks\0}$path"
+                    fi
+                fi
+            done
+        fi
+
+        while read line; do
+            section=${line%.enabled*}
+            path=$(git config $section.path) || continue
+
+            hook=${section#hooks\.}
+            if [[ ! -e $path ]]; then
+                hooks="${hooks:+$hooks\0}$path (missing)"
+            elif [[ ! -x $path ]]; then
+                hooks="${hooks:+$hooks\0}$path (not executable)"
+            elif $disabled; then
+                hooks="${hooks:+$hooks\0}$path (disabled)"
+            else
+                hooks="${hooks:+$hooks\0}$path"
+            fi
+        done < <(git config --get-regexp "hooks\.${HOOK}-.*\.enabled" true)
+
+        if [[ -n $hooks ]]; then
+            echo -n $HOOK
+            $disabled && echo " (disabled)" || echo
+            echo "----------------------"
+            echo -en $hooks | xargs -0 -L1
+            echo
+        fi
+    done
+}
+
+function git_hooks_add {
+    : <<ARGS
+    <path>...
+ARGS
+    : <<HELP
+    Adds new scripts to be run when their associated git hooks are
+    invoked. <path>... should be a list of paths to external custom
+    scripts. Any paths indicating scripts residing in the .githooks
+    directory will be ignored.
+HELP
+
+    local path name prefix hook
+    for path in $*; do
+        name=$(basename $path)
+
+        # Make sure each custom hook is associated with an original git hook
+        if ! hook=$(git_hooks__git_hook_prefix $name); then
+            echo "    Could not determine which git-hook \"$name\" is intended for. Prefix your hook with a proper git-hook name" >&2
+            continue
+        fi
+
+        # Make sure we're not trying to add one that's already in .githooks
+        if [[ -e $HOOKSDIR/$name ]] && \
+           [[ "$(stat -c %d:%i $HOOKSDIR/$name)" == "$(stat -c %d:%i $path))" ]]; then
+            echo "  Cannot add a script that is already in .githooks" >&2
+            continue
+        fi
+
+        if [[ '/' != ${path:0:1} ]]; then
+            # It's a relative path
+            pushd $(dirname $path) &>/dev/null
+            if [[ "$(git rev-parse --show-toplevel)" == "$REPO" ]]; then
+                # It's within the repository
+                prefix=$(git rev-parse --show-prefix)
+                path=$prefix$name
+            else
+                # It's external to the repository - use absolute path
+                path=$PWD/$name
+            fi
+            popd &>/dev/null
+        fi
+
+        # Add a path entry to the config for this hook script and enable it
+        git config --path hooks.$name.path $path
+        git config --bool hooks.$name.enabled true
+    done
+}
+
+function git_hooks_rm {
+    : <<ARGS
+    <custom script name>...
+ARGS
+    : <<HELP
+    Removes previously added scripts from being run during git hook
+    invocation.
+HELP
+
+    local name
+    for name in $*; do
+        git config --remove-section hooks.$name || :
+    done
+}
+
+function git_hooks_enable {
+    : <<ARGS
+    [-q|--quiet] <git hook>... <custom script name>...
+ARGS
+    : <<HELP
+    Enables a script (or scripts) to be run during git hook
+    invocation. Scripts are enabled by default.
+
+    If --quiet is specified, the updated enabled state of all hook
+    scripts will not be displayed.
+HELP
+
+    local name quiet=false
+
+    eval set -- "$(getopt -o q --long quiet -- $@)"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -q|--quiet) quiet=true; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
+
+    for name in $*; do
+        git config --unset hooks.$name.enabled || :
+        if git config hooks.$name.path &>/dev/null; then
+            git config --bool hooks.$name.enabled true
+        fi
+    done
+
+    if ! $quiet; then
+        git_hooks_list
+    fi
+}
+
+function git_hooks_disable {
+    : <<ARGS
+    [-q|--quiet] <git hook>... <custom script name>...
+ARGS
+    : <<HELP
+    Prevents a script from being run during git hook invocation.
+
+    If --quiet is specified, the updated enabled state of all hook
+    scripts will not be displayed.
+HELP
+
+    local name quiet=false
+
+    eval set -- "$(getopt -o q --long quiet -- $@)"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -q|--quiet) quiet=true; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
+
+    for name in $*; do
+        git config --bool hooks.$name.enabled false
+    done
+
+    if ! $quiet; then
+        git_hooks_list
+    fi
+}
+
+function git_hooks_run {
+    : <<ARGS
+    [-f|--force] <git hook>|<custom script name>
+ARGS
+    : <<HELP
+    Runs a git hook or an individual custom script. stdin and any
+    extra arguments will be forwarded to the designated target.
+
+    This command respects the enabled/disabled state of the hooks and
+    scripts. You can force the hook or script to run by specifying the
+    --force flag.
+HELP
+
+    local hook name path
+
+    eval set -- "$(getopt -o q --long quiet -- $@)"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -f|--force) export GITHOOKS_RUN=true; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
+
+    if git_hooks__is_git_hook $1; then
+        hook=$1
+    elif hook=$(git_hooks__git_hook_prefix $1); then
+        name=$1
+    elif [[ -z $1 ]]; then
+        echo -e "Must provide a git hook or custom script name:\n" >&2
+        git_hooks_list
+        return 1
+    else
+        echo "Not a valid git hook or custom script name" >&2
+        return 1
+    fi
+    shift || :
+
+    # Verify the presence of expected arguments
+    case $hook in
+        applypatch-msg) [[ $# == 1 ]] || { echo "Missing 1 parameter" >&2; return 1; };;
+        commit-msg) [[ $# == 1 ]] || { echo "Missing 1 parameter" >&2; return 1; };;
+        prepare-commit-msg) [[ $# == 3 ]] || { echo "Missing 3 parameters" >&2; return 1; };;
+        update) [[ $# == 3 ]] || { echo "Missing 3 parameters" >&2; return 1; };;
+        pre-receive|post-receive) [[ -t 0 ]] && { echo "Expected contents on stdin" >&2; return 1; };;
+    esac
+
+    # locate the hook or script path
+    if [[ -z $name ]];then
+        path=$GITDIR/hooks/$hook
+    elif path=$(git config hooks.$name.path); then
+        :
+    elif [[ -e $HOOKSDIR/$name ]]; then
+        path=$HOOKSDIR/$name
+    else
+        echo "Could not find hook or custom script" >&2
+        return 1
+    fi
+
+    pushd $TOPDIR >/dev/null
+    $path $*
+    popd >/dev/null
+}
+
+function git_hooks_parallel {
+    : <<ARGS
+    <git hook> [<num>|-]
+ARGS
+    : <<HELP
+    Modify the hooks.<git hook>.parallel config setting. <num> should
+    be the desired number of jobs to spawn when running the hook
+    scripts. If <num> is not provided, it will display the current
+    setting. If <num> is 0, it will be interpreted as the number of
+    CPUs as seen by cpuid. If <num> is "-", the current setting will
+    be cleared and the hook will not be run in parallel mode.
+
+    When running in parallel, each script's output is buffered until
+    it finishes. When complete, the output will be written to stdout.
+HELP
+
+    local hook=$1
+    shift || { echo "Missing git hook name" >&2; return 1; }
+
+    if ! git_hooks__is_git_hook $hook; then
+        echo "Hook must be a valid git hook name" >&2
+        return 1
+    fi
+
+    case $1 in
+        -) git config --unset hooks.$hook.parallel || :;;
+        *) git config --int hooks.$hook.parallel $1;;
+    esac
+}
+
+function git_hooks_show_input {
+    : <<ARGS
+    <git hook> [true|false]
+ARGS
+    : <<HELP
+    Modify the hooks.<git hook>.showinput config setting. If no value
+    is provided, it will display the current setting. If this setting
+    is true, the received arguments and stdin will be displayed during
+    git hook invocation.
+HELP
+
+    local hook=$1 show=$2
+    if [[ -z $hook ]]; then
+        echo "Missing git hook name" >&2
+        return 1
+    elif ! git_hooks__is_git_hook $hook; then
+        echo "    First argument must be a valid git hook name" >&2
+        return 1
+    fi
+
+    case $show in
+        true|false|"") ;;
+        *) echo "Second argument must be true, false or omitted" >&2; return 1;;
+    esac
+
+    if [[ -n $show ]] && ! $show; then
+        git config --unset hooks.$hook.showinput || :
+    else
+        git config --bool hooks.$hook.showinput $show
+    fi
+}
+
+function git_hooks_config {
+    : <<HELP
+    Simply lists all hooks-related git config settings.
+HELP
+
+    local files=( system global )
+
+    if git_hooks__require_git_dir; then
+        files=( ${files[@]} local )
+    fi
+
+    for location in ${files[@]}; do
+        echo "[$location]"
+        git config --$location --get-regexp hooks || :
+        echo
+    done
+}
+
+function git_hooks_include {
+    : <<ARGS
+    [<custom script name>...]
+ARGS
+    : <<HELP
+    Copies a script included with the git-hooks command to your
+    repository's .githooks directory.
+
+    If run with no arguments, a list of available scripts and their
+    purposes will be displayed.
+HELP
+
+    if [[ -z $@ ]]; then
+        for item in $BASH_SOURCE_DIR/included/*; do
+            printf "%-32s %s\n" $(basename $item) "$(awk 'NR==1,/<<DESC/{next}/^DESC/,NR==0{next}{print}' $item)"
+        done
+    else
+        for item in "$@"; do
+            if [[ -f $BASH_SOURCE_DIR/included/$item ]]; then
+                cp -iv $BASH_SOURCE_DIR/included/$item $HOOKSDIR
+            else
+                echo "Unrecognized script: $item"
+            fi
+        done
+    fi
+}
+
+# Determine the correct command to run and pass it the rest of the un-parsed options
+case $COMMAND in
+    # Require a git repository and a .githooks directory for these commands
+    list|add|rm|disable|enable|run|parallel|show-input)
+        if ! git_hooks__require_git_dir; then
+            exit 1
+        elif ! git_hooks__require_hook_dir; then
+            exit 1
+        elif [[ ! -e $HOOKSDIR ]]; then
+            echo "No hooks installed for this repository. Use './git-hooks install' to get started." >&2
+            exit 1
+        fi
+        ;;
+
+    # These do not require a .githooks directory
+    install|uninstall|include)
+        if ! git_hooks__require_git_dir; then
+            exit 1
+        fi
+        ;;
+
+    check-support|install-command|uninstall-command|install-template|uninstall-template|config|help)
+        ;;
+
+    *)  echo "git: '$COMMAND' is not a git-hooks command. See 'git hooks help'." >&2
+        exit 1
+        ;;
+esac
+
+git_hooks_${COMMAND//-/_} "$@"

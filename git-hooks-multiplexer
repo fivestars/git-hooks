@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+set -e
+
+# Make sure we're not accidentally being called from another multiplexer script
+[[ -z $HOOK ]] && export HOOK=$(basename "$0") || exit
+
+# Determine if we're being run explicitly from git-hooks
+export GITHOOKS_RUN=${GITHOOKS_RUN:-false}
+
+# This script will run all configured hooks found in <repository>/.githooks
+# and all hooks found by running:
+#
+#    git config --get-regexp "hooks\.$HOOK\.enabled" true
+#
+# It will fail if any of those return non-zero exit codes. You can disable
+# individual hooks through git configs:
+#
+#    # Disable all custom hooks for this git hook
+#    git config --bool hooks.$HOOK.enabled false
+#
+#    # Disable an individual custom hook
+#    git config --bool hooks.<custom hook>.enabled false
+#
+# The hooks will be run sequentially by default for safety.
+# If you determine that your hooks can be run in parallel, enable it with:
+#
+#    git config --int hooks.$HOOK.parallel <num>
+#
+# where <num> is the number of jobs you wish to start. If 0, <num> will
+# be interpretted as the number of CPUs on the machine. When running in
+# parallel, each hook's output will be buffered until complete. If you
+# choose to not run your hooks in parallel, the output will not be buffered.
+#
+# For safety, you can check for parallel execution in your hook by calling
+# the prevent-parallel function. It checks the value of
+# "git config hooks.$HOOK.parallel" and exits will non-zero exit code if it is
+# set to anything but 1.
+#
+#    Example:
+#        #!/usr/bin/env bash
+#        prevent-parallel   # Will fail the hook unless
+#                           # it is being run sequentially.
+#
+
+CAPTURE=/tmp/capture.$$
+
+cat <<"EOF" >$CAPTURE
+#!/usr/bin/env bash
+
+function prevent-parallel {
+    if is-parallel; then
+        echo "${0##*/} cannot be run as a parallel job: git config hooks.$HOOK.parallel is set"
+        exit ${1:-1}
+    fi
+}
+
+function capture_on_exit {
+    # Store the exit code
+    local RESULT=$?
+    if [[ $RESULT -ne 0 ]]; then
+        echo "[failed $(basename $hook) (exit code $RESULT)]"
+    fi
+}
+
+# Create the temporary output buffer
+read capture_outfile infile hook <<<$1
+shift
+
+# Redirect $infile to stdin if our hook expects inbound input
+[[ $HOOK == post-rewrite ]] && exec 10<&0 0<$infile || exec 10>&0 0</dev/tty
+
+# Report which hook is running
+echo "[running $HOOK git hook: $hook]"
+
+# Store stdout and stderr, then redirect them to the buffer
+is-parallel && exec 11>&1 12>&2 &>$capture_outfile
+
+# Provide the prevent-parallel function to the hook scripts
+export -f prevent-parallel
+
+# Display input if requested
+if git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
+    echo "[$# args to $hook ${*:1}]"
+    echo "[input to $hook]"
+    cat $infile # | sed "s|^|$(basename $hook)(in)  \||g"
+fi
+
+# Set our exit trap to display any errors and do our clean up
+trap "capture_on_exit $capture_outfile $hook" EXIT SIGHUP SIGINT SIGTERM
+
+# Call the wrapped script
+if is-parallel || git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
+    echo "[output for $hook]"
+fi
+$hook $* 2>&1 # | sed "s|^|$(basename $hook)(out) \||g"
+exit ${PIPESTATUS[0]}
+EOF
+
+# Collect the various hooks to run
+hooks=
+missing=
+disabled=
+nonexecutable=
+tmpfile=$(mktemp -t git_hooks.XXXX)
+count=0
+
+# Set a trap to clean up our temp file
+trap "rm -f ${tmpfile}*" EXIT SIGHUP SIGINT SIGTERM
+
+# Look in the default location of .githooks
+if ls .githooks/${HOOK}-* &>/dev/null; then
+    for hook in .githooks/${HOOK}-*; do
+        if [[ -f ${hook} && -n ${hook%%*~} ]]; then
+            if { ! $GITHOOKS_RUN; } && { git config --get-regexp "hooks\.$HOOK\.enabled" false &>/dev/null \
+                || git config --get-regexp "hooks\.${hook##*/}\.enabled" false &>/dev/null; }; then
+                disabled="${disabled:+$disabled\0}$hook"
+            elif [[ ! -x $hook ]]; then
+                nonexecutable="${nonexecutable:+$nonexecutable\0}$hook"
+            else
+                hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $hook"
+                count=$(( count + 1 ))
+            fi
+        fi
+    done
+fi
+
+# Make sure that each configured hook can be found,
+# Otherwise, fail after running the ones we cound find.
+while read line; do
+    section=${line%.enabled*}
+    path=$(git config $section.path) || continue
+    hook=${section#hooks\.}
+    if [[ ! -e $path ]]; then
+        missing="${missing:+$missing\0}$hook - $path"
+    elif [[ ! -x $path ]]; then
+        nonexecutable="${nonexecutable:+$nonexecutable\0}$hook - $path"
+    elif { ! $GITHOOKS_RUN; } && git config --get-regexp "hooks\.$HOOK\.enabled" false &>/dev/null; then
+        disabled="${disabled:+$disabled\0}$path"
+    else
+        hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $path"
+        count=$(( count + 1 ))
+    fi
+done < <(git config --get-regexp "hooks\.${HOOK}-.*\.enabled" true)
+
+# Display disabled hooks
+if [[ -n $disabled ]]; then
+    echo -e "[skipping disabled hooks]"
+    echo -en $disabled | xargs -0 -L1 | sed "s/^\(.*\)/    [\1]/"
+fi
+# Might be done already
+if [[ -z $hooks ]] && [[ -z $missing ]] && [[ -z $nonexecutable ]]; then
+    exit
+fi
+
+function is-parallel {
+    local jobs=$(git config hooks.$HOOK.parallel)
+    [[ -n $jobs && ($jobs == 0 || $jobs -gt 1) ]]
+}
+export -f is-parallel
+
+hooks_parallel="-P $(git config hooks.$HOOK.parallel)" || hooks_parallel=
+if [[ 0 == $(git config hooks.$HOOK.parallel) ]]; then
+    hooks_parallel="-P $(grep -c processor /proc/cpuinfo)"
+fi
+
+# Set a trap to display any bufferred output and clean up our temp files
+trap "rm -f ${tmpfile}.stdin; cat ${tmpfile}* 2>/dev/null; rm -f ${tmpfile}*" EXIT SIGHUP SIGINT SIGTERM
+
+# Save our stdin so we can feed it to multiple scripts
+[[ -t 0 ]] && touch ${tmpfile}.stdin || cat >${tmpfile}.stdin
+
+# Decide whether to run in parallel or sequentially
+if [[ -n $hooks_parallel ]]; then
+    # Run the hooks through xargs. If any of them fail, xargs will fail and the script
+    # will exit with an error code due to the -e at the top of this script.
+    echo -en $hooks | xargs -0 -I {} $hooks_parallel bash -e $CAPTURE {} $*
+else
+    IFS=$'\n'
+    for hook in $(echo -e $(echo $hooks | sed s/\0/\n/g)); do
+        bash -e $CAPTURE $hook $*
+    done
+    unset IFS
+fi
+
+# All hooks succeeded, reset our trap for cleanup and manually display the results
+trap "rm -f ${tmpfile}* /tmp/capture.$$" EXIT SIGHUP SIGINT SIGTERM
+rm ${tmpfile}.stdin
+cat ${tmpfile}* 2>/dev/null || :
+
+if [[ -n $missing || -n $nonexecutable ]]; then
+    # Fail the hook if we couldn't find one of the hook scripts (even though we ran
+    # the ones we found and encountered no errors)
+    if [[ -n $missing ]]; then
+        echo -e "[failed $HOOK checks due to missing hooks]"
+        echo -en $missing | xargs -0 -L1 | sed "s/^\(.*\)/    [\1]/"
+    fi
+
+    # Fail the hook if we couldn't execute one of the hook scripts (even though we
+    # ran the ones we found and encountered no errors)
+    if [[ -n $nonexecutable ]]; then
+        echo -e "[failed $HOOK checks due to non-executable hooks]"
+        echo -en $nonexecutable | xargs -0 -L1 | sed "s/^\(.*\)/    [\1]/"
+    fi
+
+    exit 1
+fi

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Delete all *.pyc files
+DESC
+
+
+find . -name "*.pyc" -exec rm {} \;

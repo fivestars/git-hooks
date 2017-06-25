@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Display commit notes between previous and new checkout
+DESC
+
+
+previous=$1
+current=$2
+is_branch=$3
+
+if [[ $is_branch == 1 ]]; then
+    found=false
+    for commit in $(git rev-list --reverse $previous..$current); do
+        if git notes list $commit &>/dev/null; then
+            if ! $found; then
+                found=true
+                printf "\e[1;31m================================================================================\e[m\n"
+            fi
+            printf "\e[1mNotes for commit: \e[m%s\n" \
+                "$(git log -1 --no-notes --format="format:%C(yellow)%h %C(white)%s %Cgreen%an%Creset" $commit)"
+            echo
+            git notes show $commit | sed 's/^/  /'
+            echo
+        fi
+    done
+
+    if $found; then
+        printf "\e[1;31m================================================================================\e[m\n"
+    fi
+fi

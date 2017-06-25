@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Prevent commits to branches with malformed names
+DESC
+
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+case $branch in
+  */*)
+    printf "\e[1;31m%s\e[0m\n" "Do not use '/' characters in your branch name" >&2
+    exit 1
+    ;;
+esac

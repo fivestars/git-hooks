@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Validate the format of a commit message
+DESC
+
+
+commit_msg=$1
+
+# Lets just send all output to stderr
+exec >&2
+
+if [[ -f $(git rev-parse --git-dir)/MERGE_HEAD ]]; then
+    # This is a merge commit, don't enforce rules
+    exit
+fi
+
+if [[ $(sed -e '/^#.*/d' -e '/^$/d' $commit_msg | wc -l) -eq 0 ]]; then
+    # Allow git commit to abort normally on an empty commit message
+    exit
+fi
+
+# Save the msg in case our commit fails and we want to preload it next time
+# in prepare-commit-msg-template
+cat $commit_msg >/tmp/git-msg-$(git rev-parse --short HEAD)
+
+success=true
+
+# Remove comments and leading newlines
+sed -i.bckp -e 's/^#.*//' -e '/./,$!d' ${commit_msg}; rm -f ${commit_msg}.bckp
+
+# Remove duplicate newlines
+{ rm $commit_msg; uniq >$commit_msg; } <$commit_msg
+
+# Check subject line capitalization
+subject=$(head -n 1 $commit_msg)
+case ${subject:0:1} in
+    [[:upper:]]) ;;
+    *)  printf "\e[1;31m%s\e[0m\n" "Commit message subject must begin with a capitalized letter"
+        printf "\e[1;31m%s\e[0m\n" "========================================================================"
+        sed -En '/^(.)(.*)$/{s//\x1b[1;33m\1\x1b[0m\2/p;q;}' $commit_msg
+        printf "\e[1;31m%s\e[0m\n\n" "========================================================================"
+        success=false
+        ;;
+esac
+
+# Check subject line length
+if [[ $(head -n 1 $commit_msg | wc -c) -gt 51 ]]; then
+    printf "\e[1;31m%s\e[0m\n" "Commit message subject must be no longer than 50 characters"
+    printf "\e[1;31m%s\e[0m\n" "========================================================================"
+    sed -En '/^(.{50})(.*)$/{s//\1\x1b[1;31m|\x1b[1;33m\2\x1b[0m/p;q;}' $commit_msg
+    printf "\e[1;31m%s\e[0m\n\n" "========================================================================"
+    success=false
+fi
+
+# Check subject line for trailing period
+case ${subject: -1} in
+    \.) printf "\e[1;31m%s\e[0m\n" "Commit message subject must not end with a period"
+        printf "\e[1;31m%s\e[0m\n" "========================================================================"
+        sed -En '/^(.*)\.$/{s//\1\x1b[1;33m.\x1b[0m/p;q;}' $commit_msg
+        printf "\e[1;31m%s\e[0m\n\n" "========================================================================"
+        success=false
+        ;;
+esac
+
+# Check for blank line after subject
+if [[ $(cat $commit_msg | wc -l) -gt 1 ]] && [[ -n $(head -n +2 $commit_msg | tail -n 1) ]]; then
+    printf "\e[1;31m%s\e[0m\n" "Commit message must have a blank line after the subject"
+    printf "\e[1;31m%s\e[0m\n" "========================================================================"
+    head -n 1 $commit_msg
+    sed -n '2p' $commit_msg | sed -E 's/^(.*)$/\x1b[1;33m\1\x1b[0m/'
+    printf "\e[1;31m%s\e[0m\n\n" "========================================================================"
+    success=false
+fi
+
+# Check message body line length
+if [[ $(awk '{print length}' $commit_msg | sort -nr | head -n 1) -gt 72 ]]; then
+    printf "\e[1;31m%s\e[0m\n" "Commit message contains lines longer than 72 characters"
+    printf "\e[1;31m%s\e[0m\n" "========================================================================"
+    sed -En '/^(.{72})(.*)$/{s//\1\x1b[1;31m|\x1b[1;33m\2\x1b[0m/p;}' $commit_msg
+    printf "\e[1;31m%s\e[0m\n\n" "========================================================================"
+    success=false
+fi
+
+$success

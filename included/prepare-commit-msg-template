@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Inject a custom commit message and restore failed commit messages
+DESC
+
+: <<HELP
+Provide a custom commit message in a .gitmessage file in the top-level
+repository directory.
+
+If the commit fails due to a 'commit-msg-format' failure, this hook
+will reload the failed message on the next commit at the current HEAD.
+HELP
+
+
+if [[ -n $2 ]]; then
+  # Don't use repo message if this is not a normal commit
+  exit
+elif [[ -f /tmp/git-msg-$(git rev-parse --short HEAD) ]]; then
+  # Found the failed commit message created by commit-msg-format
+  printf "\e[0;36m%s\e[0m\n" "Found previous commit message for these changes"
+
+  # Use the previous message as a starting point
+  mv /tmp/git-msg-$(git rev-parse --short HEAD) $1
+
+  # Remove any lingering failed commit messages
+  rm -f /tmp/git-msg-*
+elif [[ -f .gitmessage ]]; then
+  # Found a .gitmessage file in our repo
+  printf "\e[0;36m%s\e[0m\n" "Using $(basename $(git rev-parse --show-toplevel))/.gitmessage template"
+
+  # Prepend our .gitmessage to the standard hint text
+  tmpfile=$(mktemp -t git-commit-msg-template.XXXX)
+  cat .gitmessage $1 >$tmpfile
+  mv $tmpfile $1
+fi

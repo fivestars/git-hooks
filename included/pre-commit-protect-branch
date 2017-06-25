@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Prevent accidental commits to protected branches
+DESC
+
+: <<HELP
+Mark branches as protected by adding them to a .protected file in the top-level
+repository directory. By default, only master is protected.
+HELP
+
+
+shopt -s extglob
+protected=$(echo $(cat .protected 2>/dev/null))
+protected=${protected:-master}
+protected=@(${protected// /|})  # extglob
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+case $branch in
+  $protected)  # extglob
+    printf "\e[1;33m%s\e[0m" "Do you really want to commit directly to $branch? (yes/no): "
+    read answer
+    case $answer in
+        yes|y) ;;
+        *)  # Switch to a new branch and land the changes there
+            printf "\e[1;33m%s\e[0m" "Name of new branch: "
+            read branch
+            git checkout -b $branch ||:
+            ;;
+    esac
+    ;;
+esac
