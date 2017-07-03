@@ -732,7 +732,7 @@ HELP
 
     local name quiet=false
 
-    eval set -- "$(getopt -o q --long quiet -- $@)"
+    eval set -- "$(getopt -o q --long quiet -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -q|--quiet) quiet=true; shift;;
@@ -766,7 +766,7 @@ HELP
 
     local name quiet=false
 
-    eval set -- "$(getopt -o q --long quiet -- $@)"
+    eval set -- "$(getopt -o q --long quiet -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -q|--quiet) quiet=true; shift;;
@@ -799,7 +799,7 @@ HELP
 
     local hook name path
 
-    eval set -- "$(getopt -o q --long quiet -- $@)"
+    eval set -- "$(getopt -o q --long quiet -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -f|--force) export GITHOOKS_RUN=true; shift;;
@@ -844,7 +844,8 @@ HELP
     fi
 
     pushd $TOPDIR >/dev/null
-    $path $*
+    $path "$@"
+
     popd >/dev/null
 }
 
