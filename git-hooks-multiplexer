@@ -176,7 +176,7 @@ if [[ -n $hooks_parallel ]]; then
     echo -en $hooks | xargs -0 -I {} $hooks_parallel bash -e $CAPTURE {} $*
 else
     IFS=$'\n'
-    for hook in $(echo -e $(echo $hooks | sed s/\0/\n/g)); do
+    for hook in $(echo -e $(echo $hooks | sed 's/\\0/\\n/g')); do
         bash -e $CAPTURE $hook $*
     done
     unset IFS
