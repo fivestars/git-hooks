@@ -250,7 +250,7 @@ function git_hooks_help {
     Displays this help message.
 HELP
 
-    if [[ -n $1 ]]; then
+    if [[ -n ${1:-} ]]; then
         printf "git hooks %s\n" $(git_hooks__extract_desc $1)
         echo
         git_hooks__extract_doc -h "git_hooks_${1//-/_}"
@@ -832,7 +832,7 @@ HELP
     esac
 
     # locate the hook or script path
-    if [[ -z $name ]];then
+    if [[ -z ${name:-} ]];then
         path=$GITDIR/hooks/$hook
     elif path=$(git config hooks.$name.path); then
         :
