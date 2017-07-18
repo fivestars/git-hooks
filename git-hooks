@@ -242,11 +242,13 @@ function git_hooks__extract_hook_names_from_man_page {
     man githooks 2>/dev/null | grep -E '^ {0,4}[-a-z]+$'
 }
 
+
 function git_hooks__require_git_dir {
     if [[ -z $GITDIR ]]; then
         echo ".git directory required but not found" >&2 && return 1
     fi
 }
+
 
 function git_hooks__require_work_tree {
     if [[ -z $REPO ]]; then
@@ -254,11 +256,13 @@ function git_hooks__require_work_tree {
     fi
 }
 
+
 function git_hooks__require_hook_dir {
     if [[ -z $HOOKSDIR ]]; then
         echo ".githooks directory required but not found" >&2 && return 1
     fi
 }
+
 
 function git_hooks__is_git_hook {
     local hook name=$1
@@ -268,6 +272,7 @@ function git_hooks__is_git_hook {
     return 1
 }
 
+
 function git_hooks__git_hook_prefix {
     local hook name=$1
     for hook in ${GITHOOKS[@]}; do
@@ -276,9 +281,11 @@ function git_hooks__git_hook_prefix {
     return 1
 }
 
+
 function git_hooks__extract_desc {
     echo "$1 $(git_hooks__extract_doc -a git_hooks_${1//-/_} | sed 's/^\s*//g')"
 }
+
 
 function git_hooks__extract_help {
     local cmd
@@ -287,6 +294,7 @@ function git_hooks__extract_help {
         git_hooks__extract_doc -h git_hooks_${cmd//-/_} | sed 's/^/    /g'
     done < <(grep '$(git_hooks__extract_desc [-a-zA-Z0-9]\+)$' ${BASH_SOURCE} | sed 's/.* \(.*\))/\1/g')
 }
+
 
 function git_hooks__extract_doc {
     local doc_type
@@ -303,6 +311,9 @@ function git_hooks__extract_doc {
 
     type $1 | awk "NR==1,/<<${doc_type}/{next}/^${doc_type}/,NR==0{next}{print}"
 }
+
+
+
 
 function git_hooks_help {
     : <<HELP
@@ -321,6 +332,9 @@ HELP
         fi
     fi
 }
+
+
+
 
 function git_hooks_install {
     : <<ARGS
@@ -440,6 +454,9 @@ EOF
     fi
 }
 
+
+
+
 function git_hooks_uninstall {
     : <<HELP
     Removes the multiplexer hooks from the .git/hooks directory and
@@ -456,6 +473,9 @@ HELP
         fi
     done
 }
+
+
+
 
 function git_hooks_install_command {
     : <<ARGS
@@ -508,6 +528,9 @@ HELP
     fi
 }
 
+
+
+
 function git_hooks_install_template {
     : <<HELP
     Installs the multiplexer scripts into ~/.gittemplate/hooks (or
@@ -547,6 +570,9 @@ repos created or cloned on this system  To enable this behavior for already
 existing repos, run 'git init' in those repos again.
 EOF
 }
+
+
+
 
 function git_hooks_uninstall_command {
     : <<ARGS
@@ -593,6 +619,9 @@ HELP
     fi
 }
 
+
+
+
 function git_hooks_uninstall_template {
     : <<HELP
     Undoes the effects of 'install-template'.
@@ -617,6 +646,9 @@ HELP
     fi
 
 }
+
+
+
 
 function git_hooks_check_support {
     : <<HELP
@@ -652,6 +684,9 @@ HELP
         echo "All hooks are currently supported"
     fi
 }
+
+
+
 
 function git_hooks_list {
     : <<ARGS
@@ -715,6 +750,9 @@ HELP
     done
 }
 
+
+
+
 function git_hooks_add {
     : <<ARGS
     <path>...
@@ -763,6 +801,9 @@ HELP
     done
 }
 
+
+
+
 function git_hooks_rm {
     : <<ARGS
     <custom script name>...
@@ -777,6 +818,9 @@ HELP
         git config --remove-section hooks.$name || :
     done
 }
+
+
+
 
 function git_hooks_enable {
     : <<ARGS
@@ -813,6 +857,9 @@ HELP
     fi
 }
 
+
+
+
 function git_hooks_disable {
     : <<ARGS
     [-q|--quiet] <git hook>... <custom script name>...
@@ -843,6 +890,9 @@ HELP
         git_hooks_list
     fi
 }
+
+
+
 
 function git_hooks_run {
     : <<ARGS
@@ -909,6 +959,9 @@ HELP
     popd >/dev/null
 }
 
+
+
+
 function git_hooks_parallel {
     : <<ARGS
     <git hook> [<num>|-]
@@ -938,6 +991,9 @@ HELP
         *) git config --int hooks.$hook.parallel $1;;
     esac
 }
+
+
+
 
 function git_hooks_show_input {
     : <<ARGS
@@ -971,6 +1027,9 @@ HELP
     fi
 }
 
+
+
+
 function git_hooks_config {
     : <<HELP
     Simply lists all hooks-related git config settings.
@@ -988,6 +1047,9 @@ HELP
         echo
     done
 }
+
+
+
 
 function git_hooks_include {
     : <<ARGS
@@ -1015,6 +1077,9 @@ HELP
         done
     fi
 }
+
+
+
 
 # Determine the correct command to run and pass it the rest of the un-parsed options
 case $COMMAND in
