@@ -220,13 +220,16 @@ REPO=$(git rev-parse --show-toplevel 2>/dev/null) || :
 BARE=$(git rev-parse --is-bare-repository 2>/dev/null) || :
 if $BARE; then
     TOPDIR=$GITDIR
+    GITHOOKSDIR=$(git config core.hooksPath || echo $GITDIR/hooks)
     HOOKSDIR=$TOPDIR/.githooks
 elif [[ -n $REPO ]]; then
     TOPDIR=$REPO
+    GITHOOKSDIR=$(git config core.hooksPath || echo $GITDIR/hooks)
     HOOKSDIR=$TOPDIR/.githooks
 else
-    HOOKSDIR=
     TOPDIR=
+    GITHOOKSDIR=
+    HOOKSDIR=
 fi
 
 # What command were we given?
@@ -358,12 +361,12 @@ HELP
     fi
 
     # Create the .git/hooks and .githooks directories
-    mkdir -p $GITDIR/hooks $HOOKSDIR
+    mkdir -p $GITHOOKSDIR $HOOKSDIR
 
     # Move existing hooks to .githooks dir
     $no_preserve || echo "Moving existing hooks to $HOOKSDIR..."
     shopt -s nullglob
-    for item in $GITDIR/hooks/*; do
+    for item in $GITHOOKSDIR/*; do
         if ! [[ -h $item && $(readlink $item) =~ git-hooks-multiplexer ]]; then
             if $no_preserve; then
                 rm -f $item
@@ -376,9 +379,9 @@ HELP
 
     echo "Installing multiplexers..."
     for hook in ${GITHOOKS[*]}; do
-        item=$GITDIR/hooks/$hook
+        item=$GITHOOKSDIR/$hook
         if ! [[ -h $item && $(readlink $item) =~ git-hooks-multiplexer ]]; then
-            ln -isv $BASH_SOURCE_DIR/git-hooks-multiplexer $GITDIR/hooks/$hook
+            ln -isv $BASH_SOURCE_DIR/git-hooks-multiplexer $GITHOOKSDIR/$hook
         fi
     done
 
@@ -447,7 +450,7 @@ HELP
     git_hooks_uninstall_command
 
     echo "Removing multiplexers..."
-    for hook in $GITDIR/hooks/*; do
+    for hook in $GITHOOKSDIR/*; do
         if [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
             rm -v $hook
         fi
@@ -890,7 +893,7 @@ HELP
 
     # locate the hook or script path
     if [[ -z ${name:-} ]];then
-        path=$GITDIR/hooks/$hook
+        path=$GITHOOKSDIR/$hook
     elif path=$(git config hooks.$name.path); then
         :
     elif [[ -e $HOOKSDIR/$name ]]; then
