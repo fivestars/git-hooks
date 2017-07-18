@@ -58,8 +58,9 @@ git-hooks - A tool for managing and invoking custom git hook scripts.
 
 Description:
     git-hooks is a tool to facilitate git hook management, specifically being
-    able to store your hooks within the repository itself and simply reference
-    them from a multiplexer hook installed in the .git/hooks directory.
+    able to store your hooks under source control within the repository itself
+    and simply reference them from a multiplexer hook installed in the
+    .git/hooks directory.
 
     The expected usage is to write an arbitrary number of individual hook
     scripts associated with a single standard git hook and store them in the
@@ -72,17 +73,33 @@ Description:
 
 Installation:
 
-    # Install 'git hooks' as a global alias
-    ./git-hooks install-command --global
+    # Install GNU getopt (if not already present for your platform).
+    getopt -T
+    if [[ \$? -ne 4 ]]; then
+        brew install gnu-getopt
+        # -- or --
+        sudo port install getopt
+    fi
 
-    # Install the multiplexers in an existing repository
-    cd <your repo>
+    # (Optional) Install 'git hooks' as a global alias.
+    # This allows you to do 'git hooks install' in new repositories rather than
+    # locating the command via its path.
+    # Regardless, a local alias will be created in your repositories git config
+    # in the next step.
+    path/to/git-hooks/git-hooks install-command --global
+
+    # Install the multiplexers and the 'git hooks' alias in a repository.
+    cd <to your repo>
     git hooks install
+    # -- or ---
+    path/to/git-hooks/git-hooks install  # If you skipped the global alias step
 
     # Configure git to automatically install the multiplexers for all new
-    # repos (cloned or init'ed).
-    # Useful when your repos already have a .githooks directory with hook
-    # scripts in it.
+    # repos (cloned or init'ed). This will make it so that you never have to
+    # run 'git hooks install' again for this machine.
+    # Useful when your repositories already have a .githooks directory with hook
+    # scripts in it or if you plan to make regular use of the 'git hooks'
+    # functionality.
     git hooks install-template
 
 Usage:
@@ -114,13 +131,25 @@ Files:
 
             <standard git hook name>-<custom suffix>[.<file extension>]
 
-        Examples: .githooks/pre-commit-style.sh
-                  .githooks/pre-commit-unittest.py
+        They will be executed in alphabetical order, so if you wish to control
+        the order of execution, take that into account when naming the files.
+
+        Examples: .githooks/pre-commit-00-style.sh
+                  .githooks/pre-commit-01-unittest.py
 
     .git/config
         git-hooks config settings will be stored in your repository's config
         file. In the case of a bare repository, the config file is located at
         ./config.
+
+    ~/.gitconfig
+        If you opt to install the 'git hooks' alias as a global alias, it will
+        be added to this file.
+
+    ~/.gittemplate/hooks
+    ~/.gittemplate/config
+        These files will be updated if you choose to install the hooks into your
+        repository template by running 'git hooks install-template'.
 
 Common Arguments:
     <path>...
@@ -481,8 +510,9 @@ function git_hooks_install_template {
     Installs the multiplexer scripts into ~/.gittemplate/hooks (or
     into the location defined by the init.templatedir config value).
     This will cause any subsequently cloned or created repositories to
-    automatically populate their .git/hooks directories. To update
-    previously cloned repositories, just run 'git init' again.
+    automatically populate their .git/hooks directories with the
+    multiplexer script and provide them with the 'git hooks' alias.
+    To update previously cloned repositories, just run 'git init' again.
 HELP
 
     local templatedir
@@ -917,7 +947,7 @@ ARGS
     git hook invocation.
 HELP
 
-    local hook=$1 show=$2
+    local hook=${1:-} show=${2:-}
     if [[ -z $hook ]]; then
         echo "Missing git hook name" >&2
         return 1
@@ -934,7 +964,7 @@ HELP
     if [[ -n $show ]] && ! $show; then
         git config --unset hooks.$hook.showinput || :
     else
-        git config --bool hooks.$hook.showinput $show
+        git config --bool hooks.$hook.showinput $show || echo false
     fi
 }
 
