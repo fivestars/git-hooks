@@ -504,49 +504,6 @@ function git_hooks_install_command {
 
 
 
-function git_hooks_install_template {
-    : <<-HELP
-	    Installs the multiplexer scripts into ~/.gittemplate/hooks (or
-	    into the location defined by the init.templatedir config value).
-	    This will cause any subsequently cloned or created repositories to
-	    automatically populate their .git/hooks directories with the
-	    multiplexer script and provide them with the 'git hooks' alias.
-	    To update previously cloned repositories, just run 'git init' again.
-	HELP
-
-    local templatedir
-
-    if ! templatedir=$(git config --global init.templatedir); then
-        templatedir=~/.gittemplate
-        echo "Setting 'init.templatedir = $templatedir' your global git config..."
-        git config --global --path init.templatedir $templatedir
-    fi
-
-    echo -e "\nAdding multiplexer hooks to $templatedir/hooks directory..."
-    mkdir -p $templatedir/hooks
-    pushd $templatedir/hooks >/dev/null
-    for hook in ${GITHOOKS[*]}; do
-        if ! [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
-            ln -is $BASH_SOURCE_DIR/git-hooks-multiplexer $hook
-        fi
-    done
-    popd >/dev/null
-
-    echo -e "\nAdding 'git hooks' alias to $templatedir/config..."
-    touch $templatedir/config
-    git config -f $templatedir/config alias.hooks !$BASH_SOURCE_FULL
-
-    cat <<-EOF
-
-		These multiplexer hooks and the 'git hooks' alias will be installed on any new
-		repos created or cloned on this system  To enable this behavior for already
-		existing repos, run 'git init' in those repos again.
-	EOF
-}
-
-
-
-
 function git_hooks_uninstall_command {
     : <<-ARGS
 	    [--global] [--core]
@@ -590,6 +547,49 @@ function git_hooks_uninstall_command {
                 echo "Could not remove from $(git --exec-path)";;
         esac
     fi
+}
+
+
+
+
+function git_hooks_install_template {
+    : <<-HELP
+	    Installs the multiplexer scripts into ~/.gittemplate/hooks (or
+	    into the location defined by the init.templatedir config value).
+	    This will cause any subsequently cloned or created repositories to
+	    automatically populate their .git/hooks directories with the
+	    multiplexer script and provide them with the 'git hooks' alias.
+	    To update previously cloned repositories, just run 'git init' again.
+	HELP
+
+    local templatedir
+
+    if ! templatedir=$(git config --global init.templatedir); then
+        templatedir=~/.gittemplate
+        echo "Setting 'init.templatedir = $templatedir' your global git config..."
+        git config --global --path init.templatedir $templatedir
+    fi
+
+    echo -e "\nAdding multiplexer hooks to $templatedir/hooks directory..."
+    mkdir -p $templatedir/hooks
+    pushd $templatedir/hooks >/dev/null
+    for hook in ${GITHOOKS[*]}; do
+        if ! [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
+            ln -is $BASH_SOURCE_DIR/git-hooks-multiplexer $hook
+        fi
+    done
+    popd >/dev/null
+
+    echo -e "\nAdding 'git hooks' alias to $templatedir/config..."
+    touch $templatedir/config
+    git config -f $templatedir/config alias.hooks !$BASH_SOURCE_FULL
+
+    cat <<-EOF
+
+		These multiplexer hooks and the 'git hooks' alias will be installed on any new
+		repos created or cloned on this system  To enable this behavior for already
+		existing repos, run 'git init' in those repos again.
+	EOF
 }
 
 
