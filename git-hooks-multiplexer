@@ -154,12 +154,12 @@ fi
 
 function is-parallel {
     local jobs=$(git config hooks.$HOOK.parallel)
-    [[ -n $jobs && ($jobs == 0 || $jobs -gt 1) ]]
+    [[ -n $jobs && ($jobs == max || $jobs -gt 1) ]]
 }
 export -f is-parallel
 
 hooks_parallel="-P $(git config hooks.$HOOK.parallel)" || hooks_parallel=
-if [[ 0 == $(git config hooks.$HOOK.parallel) ]]; then
+if [[ max == $(git config hooks.$HOOK.parallel) ]]; then
     hooks_parallel="-P $(grep -c processor /proc/cpuinfo)"
 fi
 

@@ -115,8 +115,6 @@ Usage:
     or: git hooks $(git_hooks__extract_desc install-template)
     or: git hooks $(git_hooks__extract_desc uninstall-template)
     or: git hooks $(git_hooks__extract_desc include)
-    or: git hooks $(git_hooks__extract_desc add)
-    or: git hooks $(git_hooks__extract_desc rm)
     or: git hooks $(git_hooks__extract_desc check-support)
     or: git hooks $(git_hooks__extract_desc parallel)
     or: git hooks $(git_hooks__extract_desc show-input)
@@ -162,10 +160,9 @@ Common Arguments:
 $(echo ${GITHOOKS[*]} | xargs -L1 -n1 | sed 's/^/            /g')
 
     <custom script name>...
-        The command accepts a list of hook script names. These names may
-        indicate scripts in the repo's .githooks directory, or external
-        scripts installed via 'git-hooks add'. Standard git hook names are
-        not considered valid items in this list.
+        The command accepts a list of hook script names. These names must
+        indicate scripts in the repo's .githooks directory. Standard git hook
+        names are not considered valid items in this list.
 
 Operations:
 $(git_hooks__extract_help)
@@ -183,12 +180,6 @@ Writing custom git hook scripts:
     corresponding prefix and call them according to your config. By default
     your scripts will be run sequentially in alphabetical order as they appear
     in the .githooks directory.
-
-    You may also add external scripts using the "git-hooks add" command. These
-    scripts need to follow the same naming convention as above, but cannot
-    reside in the .githooks directory. These scripts will run after the ones
-    found in .githooks and will be run sequentially in the order they appear
-    in the .git/config file.
 
     Setting the parallel option (see above) will cause all scripts to be run
     concurrently without regard to their conventional order.
@@ -670,7 +661,7 @@ function git_hooks_list {
 	    hook. If any are disabled, it is noted in the output.
 	HELP
 
-    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook line section path
+    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks= hook name section path
 
     for HOOK in ${HOOKS[@]}; do
         if ! git_hooks__is_git_hook $HOOK; then
@@ -697,22 +688,6 @@ function git_hooks_list {
             done
         fi
 
-        while read line; do
-            section=${line%.enabled*}
-            path=$(git config $section.path) || continue
-
-            hook=${section#hooks\.}
-            if [[ ! -e $path ]]; then
-                hooks="${hooks:+$hooks\0}$path (missing)"
-            elif [[ ! -x $path ]]; then
-                hooks="${hooks:+$hooks\0}$path (not executable)"
-            elif $disabled; then
-                hooks="${hooks:+$hooks\0}$path (disabled)"
-            else
-                hooks="${hooks:+$hooks\0}$path"
-            fi
-        done < <(git config --get-regexp "hooks\.${HOOK}-.*\.enabled" true)
-
         if [[ -n $hooks ]]; then
             echo -n $HOOK
             $disabled && echo " (disabled)" || echo
@@ -720,75 +695,6 @@ function git_hooks_list {
             echo -en $hooks | xargs -0 -L1
             echo
         fi
-    done
-}
-
-
-
-
-function git_hooks_add {
-    : <<-ARGS
-	    <path>...
-	ARGS
-    : <<-HELP
-	    Adds new scripts to be run when their associated git hooks are
-	    invoked. <path>... should be a list of paths to external custom
-	    scripts. Any paths indicating scripts residing in the .githooks
-	    directory will be ignored.
-	HELP
-
-    local path name prefix hook
-    for path in $*; do
-        name=$(basename $path)
-
-        # Make sure each custom hook is associated with an original git hook
-        if ! hook=$(git_hooks__git_hook_prefix $name); then
-            echo "    Could not determine which git-hook \"$name\" is intended for. Prefix your hook with a proper git-hook name" >&2
-            continue
-        fi
-
-        # Make sure we're not trying to add one that's already in .githooks
-        if [[ -e $HOOKSDIR/$name ]] && \
-           [[ "$(stat -c %d:%i $HOOKSDIR/$name)" == "$(stat -c %d:%i $path))" ]]; then
-            echo "  Cannot add a script that is already in .githooks" >&2
-            continue
-        fi
-
-        if [[ '/' != ${path:0:1} ]]; then
-            # It's a relative path
-            pushd $(dirname $path) &>/dev/null
-            if [[ "$(git rev-parse --show-toplevel)" == "$REPO" ]]; then
-                # It's within the repository
-                prefix=$(git rev-parse --show-prefix)
-                path=$prefix$name
-            else
-                # It's external to the repository - use absolute path
-                path=$PWD/$name
-            fi
-            popd &>/dev/null
-        fi
-
-        # Add a path entry to the config for this hook script and enable it
-        git config --path hooks.$name.path $path
-        git config --bool hooks.$name.enabled true
-    done
-}
-
-
-
-
-function git_hooks_rm {
-    : <<-ARGS
-	    <custom script name>...
-	ARGS
-    : <<-HELP
-	    Removes previously added scripts from being run during git hook
-	    invocation.
-	HELP
-
-    local name
-    for name in $*; do
-        git config --remove-section hooks.$name || :
     done
 }
 
@@ -820,9 +726,6 @@ function git_hooks_enable {
 
     for name in $*; do
         git config --unset hooks.$name.enabled || :
-        if git config hooks.$name.path &>/dev/null; then
-            git config --bool hooks.$name.enabled true
-        fi
     done
 
     if ! $quiet; then
@@ -880,7 +783,7 @@ function git_hooks_run {
 	    --force flag.
 	HELP
 
-    local hook name path
+    local hook name= path
 
     eval set -- "$($getopt -o f --long force -- $@)"
     while [[ $1 != -- ]]; do
@@ -891,14 +794,14 @@ function git_hooks_run {
     done
     shift
 
-    if git_hooks__is_git_hook $1; then
-        hook=$1
-    elif hook=$(git_hooks__git_hook_prefix $1); then
-        name=$1
-    elif [[ -z $1 ]]; then
+    if [[ -z ${1:-} ]]; then
         echo -e "Must provide a git hook or custom script name:\n" >&2
         git_hooks_list
         return 1
+    elif git_hooks__is_git_hook $1; then
+        hook=$1
+    elif hook=$(git_hooks__git_hook_prefix $1); then
+        name=$1
     else
         echo "Not a valid git hook or custom script name" >&2
         return 1
@@ -915,10 +818,8 @@ function git_hooks_run {
     esac
 
     # locate the hook or script path
-    if [[ -z ${name:-} ]];then
+    if [[ -z $name ]];then
         path=$GITHOOKSDIR/$hook
-    elif path=$(git config hooks.$name.path); then
-        :
     elif [[ -e $HOOKSDIR/$name ]]; then
         path=$HOOKSDIR/$name
     else
@@ -937,21 +838,22 @@ function git_hooks_run {
 
 function git_hooks_parallel {
     : <<-ARGS
-	    <git hook> [<num>|-]
+	    <git hook> [<num>]
 	ARGS
     : <<-HELP
 	    Modify the hooks.<git hook>.parallel config setting. <num> should
 	    be the desired number of jobs to spawn when running the hook
-	    scripts. If <num> is not provided, it will display the current
-	    setting. If <num> is 0, it will be interpreted as the number of
-	    CPUs as seen by cpuid. If <num> is "-", the current setting will
-	    be cleared and the hook will not be run in parallel mode.
+	    scripts. If the second argument is not provided, it will display
+	    the current setting. If <num> is 'max', it will be interpreted as
+	    the number of CPUs as seen by cpuid. If <num> is "-", the current
+	    setting will be cleared and the hook will not be run in parallel
+	    mode.
 
 	    When running in parallel, each script's output is buffered until
 	    it finishes. When complete, the output will be written to stdout.
 	HELP
 
-    local hook=$1
+    local hook=${1:-} num=${2:-}
     shift || { echo "Missing git hook name" >&2; return 1; }
 
     if ! git_hooks__is_git_hook $hook; then
@@ -959,9 +861,9 @@ function git_hooks_parallel {
         return 1
     fi
 
-    case $1 in
+    case $hook in
         -) git config --unset hooks.$hook.parallel || :;;
-        *) git config --int hooks.$hook.parallel $1;;
+        *) git config hooks.$hook.parallel ${1:-} || :;;
     esac
 }
 
@@ -980,10 +882,9 @@ function git_hooks_show_input {
 	HELP
 
     local hook=${1:-} show=${2:-}
-    if [[ -z $hook ]]; then
-        echo "Missing git hook name" >&2
-        return 1
-    elif ! git_hooks__is_git_hook $hook; then
+    shift || { echo "Missing git hook name" >&2; return 1; }
+
+    if ! git_hooks__is_git_hook $hook; then
         echo "    First argument must be a valid git hook name" >&2
         return 1
     fi
@@ -1089,7 +990,7 @@ COMMAND=${1:-list}; shift || :
 # Determine the correct command to run and pass it the rest of the un-parsed options
 case $COMMAND in
     # Require a git repository and a .githooks directory in the repository for these commands
-    list|add|rm|disable|enable|run|parallel|show-input)
+    list|disable|enable|run|parallel|show-input)
         if ! git_hooks__require_git_dir; then
             exit 1
         elif ! git_hooks__require_hook_dir; then

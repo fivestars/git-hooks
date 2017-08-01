@@ -16,7 +16,7 @@ __git_hooks_scripts () {
 }
 
 _git_hooks () {
-    local subcommands="list enable disable run install uninstall install-command uninstall-command install-template uninstall-template include add rm check-support parallel show-input config help"
+    local subcommands="list enable disable run install uninstall install-command uninstall-command install-template uninstall-template include check-support parallel show-input config help"
     local subcommand="$(__git_find_on_cmdline "$subcommands")"
     if [ -z "$subcommand" ]; then
         __gitcomp "$subcommands"
@@ -57,21 +57,18 @@ _git_hooks () {
         local bash_source_dir=$(cd $(dirname "$BASH_SOURCE"); pwd)
         __gitcomp "$(\ls "$bash_source_dir/included")"
         ;;
-    rm)
-        # TODO
-        ;;
     parallel)
-        if [[ $cword -lt 3 ]]; then
+        if [ $cword -lt 4 ]; then
             __gitcomp "$git_hook_names"
-        elif [[ $cword -eq 3 ]]; then
+        elif [ $cword -eq 4 ]; then
             local num_cores=$(grep -c processor /proc/cpuinfo)
-            __gitcomp "- $(seq 0 $num_cores)"
+            __gitcomp "- $(seq 1 $num_cores) max"
         fi
         ;;
     show-input)
-        if [[ $cword -lt 4 ]]; then
+        if [ $cword -lt 4 ]; then
             __gitcomp "$git_hook_names"
-        elif [[ $cword -eq 4 ]]; then
+        elif [ $cword -eq 4 ]; then
             __gitcomp "true false"
         fi
         ;;

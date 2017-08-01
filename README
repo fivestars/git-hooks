@@ -59,10 +59,8 @@ Usage:
     or: git hooks install-template 
     or: git hooks uninstall-template 
     or: git hooks include [<custom script name>...]
-    or: git hooks add <path>...
-    or: git hooks rm <custom script name>...
     or: git hooks check-support 
-    or: git hooks parallel <git hook> [<num>|-]
+    or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
     or: git hooks config 
     or: git hooks help 
@@ -123,10 +121,9 @@ Common Arguments:
             post-rewrite
 
     <custom script name>...
-        The command accepts a list of hook script names. These names may
-        indicate scripts in the repo's .githooks directory, or external
-        scripts installed via 'git-hooks add'. Standard git hook names are
-        not considered valid items in this list.
+        The command accepts a list of hook script names. These names must
+        indicate scripts in the repo's .githooks directory. Standard git hook
+        names are not considered valid items in this list.
 
 Operations:
 
@@ -212,28 +209,19 @@ Operations:
         If run with no arguments, a list of available scripts and their
         purposes will be displayed.
 
-    add <path>...
-        Adds new scripts to be run when their associated git hooks are
-        invoked. <path>... should be a list of paths to external custom
-        scripts. Any paths indicating scripts residing in the .githooks
-        directory will be ignored.
-
-    rm <custom script name>...
-        Removes previously added scripts from being run during git hook
-        invocation.
-
     check-support 
         Checks for differences in the list of hooks supported by
         git-hooks and the list of hooks supported by git. If differences
         are present, consider upgrading git-hooks or git.
 
-    parallel <git hook> [<num>|-]
+    parallel <git hook> [<num>]
         Modify the hooks.<git hook>.parallel config setting. <num> should
         be the desired number of jobs to spawn when running the hook
-        scripts. If <num> is not provided, it will display the current
-        setting. If <num> is 0, it will be interpreted as the number of
-        CPUs as seen by cpuid. If <num> is "-", the current setting will
-        be cleared and the hook will not be run in parallel mode.
+        scripts. If the second argument is not provided, it will display
+        the current setting. If <num> is 'max', it will be interpreted as
+        the number of CPUs as seen by cpuid. If <num> is "-", the current
+        setting will be cleared and the hook will not be run in parallel
+        mode.
     
         When running in parallel, each script's output is buffered until
         it finishes. When complete, the output will be written to stdout.
@@ -245,6 +233,7 @@ Operations:
         git hook invocation.
 
     config 
+        Simply lists all hooks-related git config settings.
 
     help 
         Displays this help message.
@@ -262,12 +251,6 @@ Writing custom git hook scripts:
     corresponding prefix and call them according to your config. By default
     your scripts will be run sequentially in alphabetical order as they appear
     in the .githooks directory.
-
-    You may also add external scripts using the git-hooks add command. These
-    scripts need to follow the same naming convention as above, but cannot
-    reside in the .githooks directory. These scripts will run after the ones
-    found in .githooks and will be run sequentially in the order they appear
-    in the .git/config file.
 
     Setting the parallel option (see above) will cause all scripts to be run
     concurrently without regard to their conventional order.
