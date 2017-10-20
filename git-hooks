@@ -50,13 +50,32 @@ if ! command -v $getopt &>/dev/null; then
 fi
 set -e
 
+function md {
+    if $USE_MARKDOWN; then
+        echo -n "$@"
+    fi
+}
+
+function md_inline_monospace {
+    if $USE_MARKDOWN; then
+        echo -n "\`$@\`"
+    fi
+}
+
+function md_block_monospace {
+    if $USE_MARKDOWN; then
+        echo -n "\`\`\`$@\`\`\`"
+    fi
+}
+
 
 # HELP
 #############################################
 read -r -d '' HELP <<'HELP' || :
+$(md '# git-hooks')
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
-Description:
+$(md '##')Description:
     git-hooks is a tool to facilitate git hook management, specifically being
     able to store your hooks under source control within the repository itself
     and simply reference them from a multiplexer hook installed in the
@@ -71,7 +90,7 @@ Description:
     This way you can break your monolithic hooks into individual files, giving
     you greater flexibility regarding which pieces to run and when.
 
-Installation:
+$(md '##')Installation:
 
     # Install GNU getopt (if not already present for your platform).
     getopt -T
@@ -102,7 +121,7 @@ Installation:
     # functionality.
     git hooks install-template
 
-Usage:
+$(md '##')Usage:
         git hooks  # equivalent to list
     or: git hooks $(git_hooks__extract_desc list)
     or: git hooks $(git_hooks__extract_desc enable)
@@ -121,7 +140,7 @@ Usage:
     or: git hooks $(git_hooks__extract_desc config)
     or: git hooks $(git_hooks__extract_desc help)
 
-Files:
+$(md '##')Files:
     .githooks/
         This is where git-hooks will look for default hook scripts. Place your
         hook scripts in here rather than .git/hooks. Your hook scripts should
@@ -149,7 +168,7 @@ Files:
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
-Common Arguments:
+$(md '##')Common Arguments:
     <path>...
         The command accepts a list of path strings.
 
@@ -164,10 +183,10 @@ $(echo ${GITHOOKS[*]} | xargs -L1 -n1 | sed 's/^/            /g')
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
 
-Operations:
+$(md '##')Operations:
 $(git_hooks__extract_help)
 
-Writing custom git hook scripts:
+$(md '##')Writing custom git hook scripts:
 
     Once "git-hooks install" has been called for your repository, creating and
     installing your own hooks is a simple matter of placing them in the newly-
@@ -277,13 +296,27 @@ function git_hooks__extract_doc {
 }
 
 
-
-
 function git_hooks_help {
+    : <<-ARGS
+	    [--markdown]
+	ARGS
     : <<-HELP
 	    Displays this help message.
+
+        If --markdown is specified, the help message will be generated with
+        additional markdown syntax for headings and code blocks.
 	HELP
 
+    eval set -- "$($getopt -o m --long markdown -- $@)"
+    export USE_MARKDOWN=false;
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -m|--markdown)
+                export USE_MARKDOWN=true; shift;;
+            *) echo "Unrecognized option: $1"; return 1;;
+        esac
+    done
+    shift
     if [[ -n ${1:-} ]]; then
         printf "git hooks %s\n" $(git_hooks__extract_desc $1)
         echo
@@ -978,8 +1011,6 @@ else
     GITHOOKSDIR=
     HOOKSDIR=
 fi
-
-
 
 # Main functionality
 #############################################
