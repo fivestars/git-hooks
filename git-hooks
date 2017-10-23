@@ -70,13 +70,6 @@ function md_block_monospace {
     fi
 }
 
-function md_no_indent {
-  if $USE_MARKDOWN; then
-    sed 's/^[ \t]*//' <<< "$@"
-  else echo "$@"
-  fi
-}
-
 function md_no_indent_or_hash {
   if $USE_MARKDOWN; then
     sed 's/^[ \t]*[#]*[ \t]*//' <<< "$@"
@@ -91,7 +84,7 @@ read -r -d '' HELP <<'HELP' || :
 $(md '# git-hooks')
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
-$(md '## ')Description:
+$(md '## ') Description:
 $(md_no_indent_or_hash "    git-hooks is a tool to facilitate git hook management, specifically being
     able to store your hooks under source control within the repository itself
     and simply reference them from a multiplexer hook installed in the
@@ -106,7 +99,7 @@ $(md_no_indent_or_hash "    git-hooks is a tool to facilitate git hook managemen
     This way you can break your monolithic hooks into individual files, giving
     you greater flexibility regarding which pieces to run and when.")
 
-$(md '## ')Installation:
+$(md '## ') Installation:
 
 $(md_no_indent_or_hash "    # Install GNU getopt (if not already present for your platform).")
 $(md_block_monospace '    getopt -T
@@ -137,7 +130,7 @@ $(md_no_indent_or_hash "    # Configure git to automatically install the multipl
     # functionality.")
 $(md_block_monospace '    git hooks install-template')
 
-$(md '## ')Usage:
+$(md '## ') Usage:
         git hooks  # equivalent to list
     or: git hooks $(git_hooks__extract_desc list)
     or: git hooks $(git_hooks__extract_desc enable)
@@ -156,7 +149,7 @@ $(md '## ')Usage:
     or: git hooks $(git_hooks__extract_desc config)
     or: git hooks $(git_hooks__extract_desc help)
 
-$(md '## ')Files:
+$(md '## ') Files:
     .githooks/
         This is where git-hooks will look for default hook scripts. Place your
         hook scripts in here rather than .git/hooks. Your hook scripts should
@@ -184,7 +177,7 @@ $(md '## ')Files:
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
-$(md '## ')Common Arguments:
+$(md '## ') Common Arguments:
     <path>...
         The command accepts a list of path strings.
 
@@ -199,37 +192,37 @@ $(echo ${GITHOOKS[*]} | xargs -L1 -n1 | sed 's/^/            /g')
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
 
-$(md '## ')Operations:
+$(md '## ') Operations:
 $(git_hooks__extract_help)
 
-$(md '## ')Writing custom git hook scripts:
+$(md '## ') Writing custom git hook scripts:
 
-    Once "git-hooks install" has been called for your repository, creating and
+$(md_no_indent_or_hash '    Once "git-hooks install" has been called for your repository, creating and
     installing your own hooks is a simple matter of placing them in the newly-
     created .githooks directory. Your hooks must follow a particular naming
-    convention:
+    convention:')
 
-        <standard git hook name>-<custom suffix>
+$(md_block_monospace '       <standard git hook name>-<custom suffix>')
 
-    When a git hook is invoked it will look for your hooks scripts with the
+$(md_no_indent_or_hash '    When a git hook is invoked it will look for your hooks scripts with the
     corresponding prefix and call them according to your config. By default
     your scripts will be run sequentially in alphabetical order as they appear
     in the .githooks directory.
 
     Setting the parallel option (see above) will cause all scripts to be run
-    concurrently without regard to their conventional order.
+    concurrently without regard to their conventional order.')
 
-    Preventing parallel execution:
+$(md '## ')   Preventing parallel execution:
 
-        If your script cannot be run in parallel with another of the same
+$(md_no_indent_or_hash '        If your script cannot be run in parallel with another of the same
         git hook family, you may enforce this by calling the exported function
         "prevent-parallel" from within your script.
 
-        Example:
+        Example:')
 
-        #!/usr/bin/env bash
+$(md_block_monospace '        #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
-                           # unless it is being run sequentially.
+                           # unless it is being run sequentially.')
 
 HELP
 

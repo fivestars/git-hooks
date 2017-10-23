@@ -1,7 +1,7 @@
 # git-hooks
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
-## Description:
+##  Description:
 git-hooks is a tool to facilitate git hook management, specifically being
 able to store your hooks under source control within the repository itself
 and simply reference them from a multiplexer hook installed in the
@@ -16,7 +16,7 @@ configure it to do so.
 This way you can break your monolithic hooks into individual files, giving
 you greater flexibility regarding which pieces to run and when.
 
-## Installation:
+##  Installation:
 
 Install GNU getopt (if not already present for your platform).
 ```
@@ -55,7 +55,7 @@ functionality.
     git hooks install-template
 ```
 
-## Usage:
+##  Usage:
         git hooks  # equivalent to list
     or: git hooks list     [<git hook>...]
     or: git hooks enable     [-q|--quiet] <git hook>... <custom script name>...
@@ -74,7 +74,7 @@ functionality.
     or: git hooks config 
     or: git hooks help     [--markdown]
 
-## Files:
+##  Files:
     .githooks/
         This is where git-hooks will look for default hook scripts. Place your
         hook scripts in here rather than .git/hooks. Your hook scripts should
@@ -102,7 +102,7 @@ functionality.
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
-## Common Arguments:
+##  Common Arguments:
     <path>...
         The command accepts a list of path strings.
 
@@ -134,7 +134,7 @@ functionality.
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
 
-## Operations:
+##  Operations:
 
     list     [<git hook>...]
         Lists the currently available custom scripts for each standard git
@@ -250,31 +250,35 @@ functionality.
             If --markdown is specified, the help message will be generated with
             additional markdown syntax for headings and code blocks.
 
-## Writing custom git hook scripts:
+##  Writing custom git hook scripts:
 
-    Once git-hooks install has been called for your repository, creating and
-    installing your own hooks is a simple matter of placing them in the newly-
-    created .githooks directory. Your hooks must follow a particular naming
-    convention:
+Once "git-hooks install" has been called for your repository, creating and
+installing your own hooks is a simple matter of placing them in the newly-
+created .githooks directory. Your hooks must follow a particular naming
+convention:
 
-        <standard git hook name>-<custom suffix>
+```
+       <standard git hook name>-<custom suffix>
+```
 
-    When a git hook is invoked it will look for your hooks scripts with the
-    corresponding prefix and call them according to your config. By default
-    your scripts will be run sequentially in alphabetical order as they appear
-    in the .githooks directory.
+When a git hook is invoked it will look for your hooks scripts with the
+corresponding prefix and call them according to your config. By default
+your scripts will be run sequentially in alphabetical order as they appear
+in the .githooks directory.
 
-    Setting the parallel option (see above) will cause all scripts to be run
-    concurrently without regard to their conventional order.
+Setting the parallel option (see above) will cause all scripts to be run
+concurrently without regard to their conventional order.
 
-    Preventing parallel execution:
+##    Preventing parallel execution:
 
-        If your script cannot be run in parallel with another of the same
-        git hook family, you may enforce this by calling the exported function
-        prevent-parallel from within your script.
+If your script cannot be run in parallel with another of the same
+git hook family, you may enforce this by calling the exported function
+"prevent-parallel" from within your script.
 
-        Example:
+Example:
 
+```
         #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
+```
