@@ -2,50 +2,58 @@
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
 ## Description:
-    git-hooks is a tool to facilitate git hook management, specifically being
-    able to store your hooks under source control within the repository itself
-    and simply reference them from a multiplexer hook installed in the
-    .git/hooks directory.
+git-hooks is a tool to facilitate git hook management, specifically being
+able to store your hooks under source control within the repository itself
+and simply reference them from a multiplexer hook installed in the
+`.git/hooks` directory.
 
-    The expected usage is to write an arbitrary number of individual hook
-    scripts associated with a single standard git hook and store them in the
-    .githooks directory. When git invokes the multiplexer script in .git/hooks,
-    it will call your custom scripts sequentially, or in parallel if you
-    configure it to do so.
+The expected usage is to write an arbitrary number of individual hook
+scripts associated with a single standard git hook and store them in the
+`.githooks` directory. When git invokes the multiplexer script in `.git/hooks`,
+it will call your custom scripts sequentially, or in parallel if you
+configure it to do so.
 
-    This way you can break your monolithic hooks into individual files, giving
-    you greater flexibility regarding which pieces to run and when.
+This way you can break your monolithic hooks into individual files, giving
+you greater flexibility regarding which pieces to run and when.
 
 ## Installation:
 
-    # Install GNU getopt (if not already present for your platform).
+Install GNU getopt (if not already present for your platform).
+```
     getopt -T
-    if [[ $? -ne 4 ]]; then
+    if [[ \$? -ne 4 ]]; then
         brew install gnu-getopt
         # -- or --
         sudo port install getopt
     fi
+```
 
-    # (Optional) Install 'git hooks' as a global alias.
-    # This allows you to do 'git hooks install' in new repositories rather than
-    # locating the command via its path.
-    # Regardless, a local alias will be created in your repository's git config
-    # in the next step.
+(Optional) Install 'git hooks' as a global alias.
+This allows you to do 'git hooks install' in new repositories rather than
+locating the command via its path.
+Regardless, a local alias will be created in your repository's git config
+in the next step.
+```
     path/to/git-hooks/git-hooks install-command --global
+```
 
-    # Install the multiplexers and the 'git hooks' alias in a repository.
+Install the multiplexers and the 'git hooks' alias in a repository.
+```
     cd <to your repo>
     git hooks install
     # -- or ---
     path/to/git-hooks/git-hooks install  # If you skipped the global alias step
+```
 
-    # Configure git to automatically install the multiplexers for all new
-    # repos (cloned or init'ed). This will make it so that you never have to
-    # run 'git hooks install' again for this machine.
-    # Useful when your repositories already have a .githooks directory with hook
-    # scripts in it or if you plan to make regular use of the 'git hooks'
-    # functionality.
+Configure git to automatically install the multiplexers for all new
+repos (cloned or init'ed). This will make it so that you never have to
+run 'git hooks install' again for this machine.
+Useful when your repositories already have a .githooks directory with hook
+scripts in it or if you plan to make regular use of the 'git hooks'
+functionality.
+```
     git hooks install-template
+```
 
 ## Usage:
         git hooks  # equivalent to list

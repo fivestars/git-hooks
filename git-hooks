@@ -65,7 +65,7 @@ function md_inline_monospace {
 
 function md_block_monospace {
     if $USE_MARKDOWN; then
-        echo -n "\`\`\`$@\`\`\`"
+        echo -e "\`\`\`\n$@\n\`\`\`"
       else echo "$@"
     fi
 }
@@ -73,6 +73,13 @@ function md_block_monospace {
 function md_no_indent {
   if $USE_MARKDOWN; then
     sed 's/^[ \t]*//' <<< "$@"
+  else echo "$@"
+  fi
+}
+
+function md_no_indent_or_hash {
+  if $USE_MARKDOWN; then
+    sed 's/^[ \t]*[#]*[ \t]*//' <<< "$@"
   else echo "$@"
   fi
 }
@@ -85,7 +92,7 @@ $(md '# git-hooks')
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
 $(md '## ')Description:
-$(md_no_indent "    git-hooks is a tool to facilitate git hook management, specifically being
+$(md_no_indent_or_hash "    git-hooks is a tool to facilitate git hook management, specifically being
     able to store your hooks under source control within the repository itself
     and simply reference them from a multiplexer hook installed in the
     $(md_inline_monospace .git/hooks) directory.
@@ -101,34 +108,34 @@ $(md_no_indent "    git-hooks is a tool to facilitate git hook management, speci
 
 $(md '## ')Installation:
 
-    # Install GNU getopt (if not already present for your platform).
-    getopt -T
+$(md_no_indent_or_hash "    # Install GNU getopt (if not already present for your platform).")
+$(md_block_monospace '    getopt -T
     if [[ \$? -ne 4 ]]; then
         brew install gnu-getopt
         # -- or --
         sudo port install getopt
-    fi
+    fi')
 
-    # (Optional) Install 'git hooks' as a global alias.
+$(md_no_indent_or_hash "    # (Optional) Install 'git hooks' as a global alias.
     # This allows you to do 'git hooks install' in new repositories rather than
     # locating the command via its path.
     # Regardless, a local alias will be created in your repository's git config
-    # in the next step.
-    path/to/git-hooks/git-hooks install-command --global
+    # in the next step.")
+$(md_block_monospace '    path/to/git-hooks/git-hooks install-command --global')
 
-    # Install the multiplexers and the 'git hooks' alias in a repository.
-    cd <to your repo>
+$(md_no_indent_or_hash "    # Install the multiplexers and the 'git hooks' alias in a repository.")
+$(md_block_monospace '    cd <to your repo>
     git hooks install
     # -- or ---
-    path/to/git-hooks/git-hooks install  # If you skipped the global alias step
+    path/to/git-hooks/git-hooks install  # If you skipped the global alias step')
 
-    # Configure git to automatically install the multiplexers for all new
+$(md_no_indent_or_hash "    # Configure git to automatically install the multiplexers for all new
     # repos (cloned or init'ed). This will make it so that you never have to
     # run 'git hooks install' again for this machine.
     # Useful when your repositories already have a .githooks directory with hook
     # scripts in it or if you plan to make regular use of the 'git hooks'
-    # functionality.
-    git hooks install-template
+    # functionality.")
+$(md_block_monospace '    git hooks install-template')
 
 $(md '## ')Usage:
         git hooks  # equivalent to list
