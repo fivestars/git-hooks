@@ -1,7 +1,8 @@
 # git-hooks
-git-hooks - A tool for managing and invoking custom git hook scripts.
+A tool for managing and invoking custom git hook scripts.
 
-##  Description:
+## Description:
+
 git-hooks is a tool to facilitate git hook management, specifically being
 able to store your hooks under source control within the repository itself
 and simply reference them from a multiplexer hook installed in the
@@ -16,16 +17,18 @@ configure it to do so.
 This way you can break your monolithic hooks into individual files, giving
 you greater flexibility regarding which pieces to run and when.
 
-##  Installation:
+## Installation:
 
 Install GNU getopt (if not already present for your platform).
 ```
+
     getopt -T
-    if [[ \$? -ne 4 ]]; then
+    if [[ $? -ne 4 ]]; then
         brew install gnu-getopt
         # -- or --
         sudo port install getopt
     fi
+
 ```
 
 (Optional) Install 'git hooks' as a global alias.
@@ -39,10 +42,12 @@ in the next step.
 
 Install the multiplexers and the 'git hooks' alias in a repository.
 ```
+
     cd <to your repo>
     git hooks install
     # -- or ---
     path/to/git-hooks/git-hooks install  # If you skipped the global alias step
+
 ```
 
 Configure git to automatically install the multiplexers for all new
@@ -55,26 +60,26 @@ functionality.
     git hooks install-template
 ```
 
-##  Usage:
+## Usage:
         git hooks  # equivalent to list
-    or: git hooks list     [<git hook>...]
-    or: git hooks enable     [-q|--quiet] <git hook>... <custom script name>...
-    or: git hooks disable     [-q|--quiet] <git hook>... <custom script name>...
-    or: git hooks run     [-f|--force] <git hook>|<custom script name>
-    or: git hooks install     [-e|--examples] [--no-preserve]
+    or: git hooks list [<git hook>...]
+    or: git hooks enable [-q|--quiet] <git hook>... <custom script name>...
+    or: git hooks disable [-q|--quiet] <git hook>... <custom script name>...
+    or: git hooks run [-f|--force] <git hook>|<custom script name>
+    or: git hooks install [-e|--examples] [--no-preserve]
     or: git hooks uninstall 
-    or: git hooks install-command     [--global] [--core]
-    or: git hooks uninstall-command     [--global] [--core]
+    or: git hooks install-command [--global] [--core]
+    or: git hooks uninstall-command [--global] [--core]
     or: git hooks install-template 
     or: git hooks uninstall-template 
-    or: git hooks include     [<custom script name>...]
+    or: git hooks include [<custom script name>...]
     or: git hooks check-support 
-    or: git hooks parallel     <git hook> [<num>]
-    or: git hooks show-input     <git hook> [true|false]
+    or: git hooks parallel <git hook> [<num>]
+    or: git hooks show-input <git hook> [true|false]
     or: git hooks config 
-    or: git hooks help     [--markdown]
+    or: git hooks help [--markdown]
 
-##  Files:
+## Files:
     .githooks/
         This is where git-hooks will look for default hook scripts. Place your
         hook scripts in here rather than .git/hooks. Your hook scripts should
@@ -102,7 +107,7 @@ functionality.
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
-##  Common Arguments:
+## Common Arguments:
     <path>...
         The command accepts a list of path strings.
 
@@ -134,26 +139,26 @@ functionality.
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
 
-##  Operations:
+## Operations:
 
-    list     [<git hook>...]
+    list [<git hook>...]
         Lists the currently available custom scripts for each standard git
         hook. If any are disabled, it is noted in the output.
 
-    enable     [-q|--quiet] <git hook>... <custom script name>...
+    enable [-q|--quiet] <git hook>... <custom script name>...
         Enables a script (or scripts) to be run during git hook
         invocation. Scripts are enabled by default.
     
         If --quiet is specified, the updated enabled state of all hook
         scripts will not be displayed.
 
-    disable     [-q|--quiet] <git hook>... <custom script name>...
+    disable [-q|--quiet] <git hook>... <custom script name>...
         Prevents a script from being run during git hook invocation.
     
         If --quiet is specified, the updated enabled state of all hook
         scripts will not be displayed.
 
-    run     [-f|--force] <git hook>|<custom script name>
+    run [-f|--force] <git hook>|<custom script name>
         Runs a git hook or an individual custom script. stdin and any
         extra arguments will be forwarded to the designated target.
     
@@ -161,7 +166,7 @@ functionality.
         scripts. You can force the hook or script to run by specifying the
         --force flag.
 
-    install     [-e|--examples] [--no-preserve]
+    install [-e|--examples] [--no-preserve]
         Installs the multiplexer hooks into the .git/hooks directory.
         These scripts are the core of the git-hooks functionality.
         They are responsible for running any configured custom scripts
@@ -181,7 +186,7 @@ functionality.
         Removes the multiplexer hooks from the .git/hooks directory and
         removes the 'hooks' alias from the repo's config, if present.
 
-    install-command     [--global] [--core]
+    install-command [--global] [--core]
         Installs 'git-hooks' command into any of three locations.
             --global: Add it to the global git aliases
             --core: Links this file into this machine's git core
@@ -191,7 +196,7 @@ functionality.
         If neither --global nor --core are specified, the alias will be
         installed into the repo's local git config.
 
-    uninstall-command     [--global] [--core]
+    uninstall-command [--global] [--core]
         Clears the 'git-hooks' command from the specified location.
             --global: Remove it from the global aliases
             --core: Delete the git-hooks link from this machine's git
@@ -211,7 +216,7 @@ functionality.
     uninstall-template 
         Undoes the effects of 'install-template'.
 
-    include     [<custom script name>...]
+    include [<custom script name>...]
         Copies a script included with the git-hooks command to your
         repository's .githooks directory.
     
@@ -223,7 +228,7 @@ functionality.
         git-hooks and the list of hooks supported by git. If differences
         are present, consider upgrading git-hooks or git.
 
-    parallel     <git hook> [<num>]
+    parallel <git hook> [<num>]
         Modify the hooks.<git hook>.parallel config setting. <num> should
         be the desired number of jobs to spawn when running the hook
         scripts. If the second argument is not provided, it will display
@@ -235,7 +240,7 @@ functionality.
         When running in parallel, each script's output is buffered until
         it finishes. When complete, the output will be written to stdout.
 
-    show-input     <git hook> [true|false]
+    show-input <git hook> [true|false]
         Modify the hooks.<git hook>.showinput config setting. If no value
         is provided, it will display the current setting. If this setting
         is true, the received arguments and stdin will be displayed during
@@ -244,13 +249,13 @@ functionality.
     config 
         Simply lists all hooks-related git config settings.
 
-    help     [--markdown]
+    help [--markdown]
         Displays this help message.
     
-            If --markdown is specified, the help message will be generated with
-            additional markdown syntax for headings and code blocks.
+        If --markdown is specified, the help message will be generated with
+        additional markdown syntax for headings and code blocks.
 
-##  Writing custom git hook scripts:
+## Writing custom git hook scripts:
 
 Once "git-hooks install" has been called for your repository, creating and
 installing your own hooks is a simple matter of placing them in the newly-
@@ -269,16 +274,17 @@ in the .githooks directory.
 Setting the parallel option (see above) will cause all scripts to be run
 concurrently without regard to their conventional order.
 
-##    Preventing parallel execution:
+###    Preventing parallel execution:
 
 If your script cannot be run in parallel with another of the same
 git hook family, you may enforce this by calling the exported function
 "prevent-parallel" from within your script.
 
 Example:
-
 ```
+
         #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
+
 ```
