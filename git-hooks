@@ -59,13 +59,22 @@ function md {
 function md_inline_monospace {
     if $USE_MARKDOWN; then
         echo -n "\`$@\`"
+      else echo "$@"
     fi
 }
 
 function md_block_monospace {
     if $USE_MARKDOWN; then
         echo -n "\`\`\`$@\`\`\`"
+      else echo "$@"
     fi
+}
+
+function md_no_indent {
+  if $USE_MARKDOWN; then
+    sed 's/^[ \t]*//' <<< "$@"
+  else echo "$@"
+  fi
 }
 
 
@@ -76,19 +85,19 @@ $(md '# git-hooks')
 git-hooks - A tool for managing and invoking custom git hook scripts.
 
 $(md '## ')Description:
-    git-hooks is a tool to facilitate git hook management, specifically being
+$(md_no_indent "    git-hooks is a tool to facilitate git hook management, specifically being
     able to store your hooks under source control within the repository itself
     and simply reference them from a multiplexer hook installed in the
-    .git/hooks directory.
+    $(md_inline_monospace .git/hooks) directory.
 
     The expected usage is to write an arbitrary number of individual hook
     scripts associated with a single standard git hook and store them in the
-    .githooks directory. When git invokes the multiplexer script in .git/hooks,
+    $(md_inline_monospace .githooks) directory. When git invokes the multiplexer script in $(md_inline_monospace .git/hooks),
     it will call your custom scripts sequentially, or in parallel if you
     configure it to do so.
 
     This way you can break your monolithic hooks into individual files, giving
-    you greater flexibility regarding which pieces to run and when.
+    you greater flexibility regarding which pieces to run and when.")
 
 $(md '## ')Installation:
 
