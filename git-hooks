@@ -62,25 +62,36 @@ function md_omit {
     fi
 }
 
+function md_inline_quotes {
+    if $USE_MARKDOWN; then
+        echo -n "\`$@\`"
+    else
+        echo -n "'$@'"
+    fi
+}
+
 function md_inline_monospace {
     if $USE_MARKDOWN; then
         echo -n "\`$@\`"
-      else echo "$@"
+    else
+        echo "$@"
     fi
 }
 
 function md_block_monospace {
     if $USE_MARKDOWN; then
         echo -e "\`\`\`\n$@\n\`\`\`"
-      else echo "$@"
+    else
+        echo "$@"
     fi
 }
 
 function md_no_indent_or_hash {
-  if $USE_MARKDOWN; then
-    sed 's/^[ \t]*[#]*[ \t]*//' <<< "$@"
-  else echo "$@"
-  fi
+    if $USE_MARKDOWN; then
+        sed 's/^[ \t]*[#]*[ \t]*//' <<< "$@"
+    else
+        echo "$@"
+    fi
 }
 
 
@@ -99,7 +110,7 @@ $(md_no_indent_or_hash "
 
     The expected usage is to write an arbitrary number of individual hook
     scripts associated with a single standard git hook and store them in the
-    $(md_inline_monospace .githooks) directory. When git invokes the multiplexer script in $(md_inline_monospace .git/hooks),
+    $(md_inline_monospace '.githooks') directory. When git invokes the multiplexer script in $(md_inline_monospace .git/hooks),
     it will call your custom scripts sequentially, or in parallel if you
     configure it to do so.
 
@@ -109,7 +120,7 @@ $(md_no_indent_or_hash "
 
 $(md '##') Installation:
 
-$(md_no_indent_or_hash "    # Install GNU getopt (if not already present for your platform).")
+$(md '#### ')$(md_no_indent_or_hash "    # Install GNU getopt (if not already present for your platform).")
 $(md_block_monospace '
     getopt -T
     if [[ $? -ne 4 ]]; then
@@ -118,32 +129,35 @@ $(md_block_monospace '
         sudo port install getopt
     fi
 ')
+
+$(md '#### ')$(md_no_indent_or_hash "    # Install $(md_inline_quotes 'git hooks') as a git global alias (optional)")
 $(md_no_indent_or_hash "
-    # (Optional) Install 'git hooks' as a global alias.
-    # This allows you to do 'git hooks install' in new repositories rather than
-    # locating the command via its path.
-    # Regardless, a local alias will be created in your repository's git config
-    # in the next step.
+    # This allows you to do $(md_inline_quotes 'git hooks install') in new repositories rather than
+    # locating the command via its path. Regardless, a local alias will be created
+    # in your repository's git config in the next step.
 ")
 $(md_block_monospace '    path/to/git-hooks/git-hooks install-command --global')
-$(md_no_indent_or_hash "
-    # Install the multiplexers and the 'git hooks' alias in a repository.
-")
+
+$(md '#### ')$(md_no_indent_or_hash "    # Install the multiplexers and the 'git hooks' alias in a repository")
 $(md_block_monospace '
     cd <to your repo>
     git hooks install
-    # -- or ---
-    path/to/git-hooks/git-hooks install  # If you skipped the global alias step
+    # -- or, if you skipped the global git alias step above ---
+    path/to/git-hooks/git-hooks install
 ')
+
+$(md '#### ')$(md_no_indent_or_hash "    # Configure git to automatically install the multiplexers for all new repos (cloned or init'ed)")
 $(md_no_indent_or_hash "
-    # Configure git to automatically install the multiplexers for all new
-    # repos (cloned or init'ed). This will make it so that you never have to
-    # run 'git hooks install' again for this machine.
-    # Useful when your repositories already have a .githooks directory with hook
-    # scripts in it or if you plan to make regular use of the 'git hooks'
-    # functionality.
+    # This will make it so that you never have to run $(md_inline_quotes 'git hooks install') again for this machine.
+    # This is useful when your repositories already have a $(md_inline_monospace '.githooks') directory with hook
+    # scripts in it or if you plan to make regular use of the $(md_inline_quotes 'git hooks') functionality in other
+    # or future repositonies.
 ")
-$(md_block_monospace '    git hooks install-template')
+$(md_block_monospace '
+    git hooks install-template
+    # -- or, if you skipped the global git alias step above ---
+    path/to/git-hooks/git-hooks install-template
+')
 
 $(md '##') Usage:
         git hooks  # equivalent to list
@@ -211,32 +225,32 @@ $(md '##') Operations:
 $(git_hooks__extract_help)
 
 $(md '##') Writing custom git hook scripts:
-$(md_no_indent_or_hash '
-    Once "git-hooks install" has been called for your repository, creating and
+$(md_no_indent_or_hash "
+    Once $(md_inline_quotes 'git-hooks install') has been called for your repository, creating and
     installing your own hooks is a simple matter of placing them in the newly-
-    created .githooks directory. Your hooks must follow a particular naming
+    created $(md_inline_monospace '.githooks') directory. Your hooks must follow a particular naming
     convention:
-')
+")
 
 $(md_block_monospace '       <standard git hook name>-<custom suffix>')
-$(md_no_indent_or_hash '
+$(md_no_indent_or_hash "
     When a git hook is invoked it will look for your hooks scripts with the
     corresponding prefix and call them according to your config. By default
     your scripts will be run sequentially in alphabetical order as they appear
-    in the .githooks directory.
+    in the $(md_inline_monospace '.githooks') directory.
 
     Setting the parallel option (see above) will cause all scripts to be run
     concurrently without regard to their conventional order.
-')
+")
 
 $(md '###')    Preventing parallel execution:
-$(md_no_indent_or_hash '
+$(md_no_indent_or_hash "
         If your script cannot be run in parallel with another of the same
         git hook family, you may enforce this by calling the exported function
-        "prevent-parallel" from within your script.
+        $(md_inline_quotes 'prevent-parallel') from within your script.
 
         Example:
-')
+")
 $(md_block_monospace '
         #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
