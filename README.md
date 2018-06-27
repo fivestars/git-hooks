@@ -1,23 +1,27 @@
-git-hooks - A tool for managing and invoking custom git hook scripts.
+# git-hooks
+A tool for managing and invoking custom git hook scripts.
 
-Description:
-    git-hooks is a tool to facilitate git hook management, specifically being
-    able to store your hooks under source control within the repository itself
-    and simply reference them from a multiplexer hook installed in the
-    .git/hooks directory.
+## Description:
 
-    The expected usage is to write an arbitrary number of individual hook
-    scripts associated with a single standard git hook and store them in the
-    .githooks directory. When git invokes the multiplexer script in .git/hooks,
-    it will call your custom scripts sequentially, or in parallel if you
-    configure it to do so.
+git-hooks is a tool to facilitate git hook management, specifically being
+able to store your hooks under source control within the repository itself
+and simply reference them from a multiplexer hook installed in the
+`.git/hooks` directory.
 
-    This way you can break your monolithic hooks into individual files, giving
-    you greater flexibility regarding which pieces to run and when.
+The expected usage is to write an arbitrary number of individual hook
+scripts associated with a single standard git hook and store them in the
+`.githooks` directory. When git invokes the multiplexer script in `.git/hooks`,
+it will call your custom scripts sequentially, or in parallel if you
+configure it to do so.
 
-Installation:
+This way you can break your monolithic hooks into individual files, giving
+you greater flexibility regarding which pieces to run and when.
 
-    # Install GNU getopt (if not already present for your platform).
+## Installation:
+
+#### Install GNU getopt (if not already present for your platform).
+```
+
     getopt -T
     if [[ $? -ne 4 ]]; then
         brew install gnu-getopt
@@ -25,28 +29,42 @@ Installation:
         sudo port install getopt
     fi
 
-    # (Optional) Install 'git hooks' as a global alias.
-    # This allows you to do 'git hooks install' in new repositories rather than
-    # locating the command via its path.
-    # Regardless, a local alias will be created in your repository's git config
-    # in the next step.
-    path/to/git-hooks/git-hooks install-command --global
+```
 
-    # Install the multiplexers and the 'git hooks' alias in a repository.
+#### Install `git hooks` as a git global alias (optional)
+
+This allows you to do `git hooks install` in new repositories rather than
+locating the command via its path. Regardless, a local alias will be created
+in your repository's git config in the next step.
+```
+    path/to/git-hooks/git-hooks install-command --global
+```
+
+#### Install the multiplexers and the 'git hooks' alias in a repository
+```
+
     cd <to your repo>
     git hooks install
-    # -- or ---
-    path/to/git-hooks/git-hooks install  # If you skipped the global alias step
+    # -- or, if you skipped the global git alias step above ---
+    path/to/git-hooks/git-hooks install
 
-    # Configure git to automatically install the multiplexers for all new
-    # repos (cloned or init'ed). This will make it so that you never have to
-    # run 'git hooks install' again for this machine.
-    # Useful when your repositories already have a .githooks directory with hook
-    # scripts in it or if you plan to make regular use of the 'git hooks'
-    # functionality.
+```
+
+#### Configure git to automatically install the multiplexers for all new repos (cloned or init'ed)
+
+This will make it so that you never have to run `git hooks install` again for this machine.
+This is useful when your repositories already have a `.githooks` directory with hook
+scripts in it or if you plan to make regular use of the `git hooks` functionality in other
+or future repositonies.
+```
+
     git hooks install-template
+    # -- or, if you skipped the global git alias step above ---
+    path/to/git-hooks/git-hooks install-template
 
-Usage:
+```
+
+## Usage:
         git hooks  # equivalent to list
     or: git hooks list [<git hook>...]
     or: git hooks enable [-q|--quiet] <git hook>... <custom script name>...
@@ -63,9 +81,9 @@ Usage:
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
     or: git hooks config 
-    or: git hooks help 
+    or: git hooks help [--markdown]
 
-Files:
+## Files:
     .githooks/
         This is where git-hooks will look for default hook scripts. Place your
         hook scripts in here rather than .git/hooks. Your hook scripts should
@@ -93,7 +111,7 @@ Files:
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
-Common Arguments:
+## Common Arguments:
     <path>...
         The command accepts a list of path strings.
 
@@ -125,7 +143,7 @@ Common Arguments:
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
 
-Operations:
+## Operations:
 
     list [<git hook>...]
         Lists the currently available custom scripts for each standard git
@@ -235,34 +253,42 @@ Operations:
     config 
         Simply lists all hooks-related git config settings.
 
-    help 
+    help [--markdown]
         Displays this help message.
+    
+        If --markdown is specified, the help message will be generated with
+        additional markdown syntax for headings and code blocks.
 
-Writing custom git hook scripts:
+## Writing custom git hook scripts:
 
-    Once git-hooks install has been called for your repository, creating and
-    installing your own hooks is a simple matter of placing them in the newly-
-    created .githooks directory. Your hooks must follow a particular naming
-    convention:
+Once `git-hooks install` has been called for your repository, creating and
+installing your own hooks is a simple matter of placing them in the newly-
+created `.githooks` directory. Your hooks must follow a particular naming
+convention:
 
-        <standard git hook name>-<custom suffix>
+```
+       <standard git hook name>-<custom suffix>
+```
 
-    When a git hook is invoked it will look for your hooks scripts with the
-    corresponding prefix and call them according to your config. By default
-    your scripts will be run sequentially in alphabetical order as they appear
-    in the .githooks directory.
+When a git hook is invoked it will look for your hooks scripts with the
+corresponding prefix and call them according to your config. By default
+your scripts will be run sequentially in alphabetical order as they appear
+in the `.githooks` directory.
 
-    Setting the parallel option (see above) will cause all scripts to be run
-    concurrently without regard to their conventional order.
+Setting the parallel option (see above) will cause all scripts to be run
+concurrently without regard to their conventional order.
 
-    Preventing parallel execution:
+###    Preventing parallel execution:
 
-        If your script cannot be run in parallel with another of the same
-        git hook family, you may enforce this by calling the exported function
-        prevent-parallel from within your script.
+If your script cannot be run in parallel with another of the same
+git hook family, you may enforce this by calling the exported function
+`prevent-parallel` from within your script.
 
-        Example:
+Example:
+```
 
         #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
+
+```
