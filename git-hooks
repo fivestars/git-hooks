@@ -136,7 +136,7 @@ $(md_no_indent_or_hash "
     # locating the command via its path. Regardless, a local alias will be created
     # in your repository's git config in the next step.
 ")
-$(md_block_monospace '    path/to/git-hooks/git-hooks install-command --global')
+$(md_block_monospace '    path/to/git-hooks/git-hooks install-alias --global')
 
 $(md '#### ')$(md_no_indent_or_hash "    # Install the multiplexers and the 'git hooks' alias in a repository")
 $(md_block_monospace '
@@ -167,8 +167,8 @@ $(md '##') Usage:
     or: git hooks $(git_hooks__extract_desc run)
     or: git hooks $(git_hooks__extract_desc install)
     or: git hooks $(git_hooks__extract_desc uninstall)
-    or: git hooks $(git_hooks__extract_desc install-command)
-    or: git hooks $(git_hooks__extract_desc uninstall-command)
+    or: git hooks $(git_hooks__extract_desc install-alias)
+    or: git hooks $(git_hooks__extract_desc uninstall-alias)
     or: git hooks $(git_hooks__extract_desc install-template)
     or: git hooks $(git_hooks__extract_desc uninstall-template)
     or: git hooks $(git_hooks__extract_desc include)
@@ -377,7 +377,7 @@ function git_hooks_help {
 
 function git_hooks_install {
     : <<-ARGS
-	    [-e|--examples] [--no-preserve]
+	    [-e|--examples] [--no-preserve] [--no-alias]
 	ARGS
     : <<-HELP
 	    Installs the multiplexer hooks into the .git/hooks directory.
@@ -388,29 +388,37 @@ function git_hooks_install {
 	    directory and moves any existing hooks into it. Any scripts
 	    moved in this process will receive the "-moved" suffix.
 
+	    It will also create the git alias 'git hooks' in the local
+	    repo's config if the global alias is not already present.
+
 	    If --examples is specified, an active example script will be
 	    created in the new .githooks directory.
 
 	    If --no-preserve is specified, no existing hook scripts in
 	    .git/hooks will be moved to the .githooks directory with the
 	    "-moved" suffix.
+
+	    If --no-alias is specified, the local 'git hooks' alias will
+	    not be created.
+
 	HELP
 
-    local link item answer firsttime examples=false no_preserve=false
+    local item examples=false preserve=true alias=true
 
-    eval set -- "$($getopt -o e --long examples,no-preserve -- $@)"
+    eval set -- "$($getopt -o e --long examples,no-preserve,no-alias -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -e|--examples) examples=true; shift;;
-            --no-preserve) no_preserve=true; shift;;
+            --no-preserve) preserve=false; shift;;
+            --no-alias) alias=false; shift;;
             *) echo "Unrecognized option: $1"; return 1;;
         esac
     done
     shift
 
     # Create hooks alias if not already present
-    if ! git hooks &>/dev/null; then
-        git_hooks_install_command
+    if $alias && ! git hooks &>/dev/null; then
+        git_hooks_install_alias
     fi
 
     # Create the .git/hooks and .githooks directories
@@ -503,7 +511,7 @@ function git_hooks_uninstall {
 	HELP
 
     # Remove hooks alias if present in repo config
-    git_hooks_uninstall_command
+    git_hooks_uninstall_alias
 
     echo "Removing multiplexers..."
     for hook in $GITHOOKSDIR/*; do
@@ -516,12 +524,12 @@ function git_hooks_uninstall {
 
 
 
-function git_hooks_install_command {
+function git_hooks_install_alias {
     : <<-ARGS
 	    [--global] [--core]
 	ARGS
     : <<-HELP
-	    Installs 'git-hooks' command into any of three locations.
+	    Installs 'git-hooks' alias into any of three locations.
 	        --global: Add it to the global git aliases
 	        --core: Links this file into this machine's git core
 	                directory. Any 'hooks' aliases will no longer be
@@ -570,12 +578,12 @@ function git_hooks_install_command {
 
 
 
-function git_hooks_uninstall_command {
+function git_hooks_uninstall_alias {
     : <<-ARGS
 	    [--global] [--core]
 	ARGS
     : <<-HELP
-	    Clears the 'git-hooks' command from the specified location.
+	    Clears the 'git-hooks' alias from the specified location.
 	        --global: Remove it from the global aliases
 	        --core: Delete the git-hooks link from this machine's git
 	                core directory.
@@ -1081,7 +1089,7 @@ case $COMMAND in
         fi
         ;;
 
-    check-support|install-command|uninstall-command|install-template|uninstall-template|config|help)
+    check-support|install-alias|uninstall-alias|install-template|uninstall-template|config|help)
         ;;
 
     *)  echo "git: '$COMMAND' is not a git-hooks command. See 'git hooks help'." >&2
