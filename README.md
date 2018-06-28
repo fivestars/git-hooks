@@ -36,6 +36,10 @@ you greater flexibility regarding which pieces to run and when.
 This allows you to do `git hooks install` in new repositories rather than
 locating the command via its path. Regardless, a local alias will be created
 in your repository's git config in the next step.
+
+See the `git hooks install-template` instructions below for the recommended
+way of ensuring all of your future cloned and created repositories automatically
+get `git hooks` support right out of the box.
 ```
     path/to/git-hooks/git-hooks install-alias --global
 ```
@@ -222,6 +226,7 @@ or future repositonies.
         This will cause any subsequently cloned or created repositories to
         automatically populate their .git/hooks directories with the
         multiplexer script and provide them with the 'git hooks' alias.
+    
         To update previously cloned repositories, just run 'git init' again.
 
     uninstall-template 

@@ -135,6 +135,10 @@ $(md_no_indent_or_hash "
     # This allows you to do $(md_inline_quotes 'git hooks install') in new repositories rather than
     # locating the command via its path. Regardless, a local alias will be created
     # in your repository's git config in the next step.
+
+    # See the $(md_inline_quotes "git hooks install-template") instructions below for the recommended
+    # way of ensuring all of your future cloned and created repositories automatically
+    # get $(md_inline_quotes "git hooks") support right out of the box.
 ")
 $(md_block_monospace '    path/to/git-hooks/git-hooks install-alias --global')
 
@@ -425,14 +429,14 @@ function git_hooks_install {
     mkdir -p $GITHOOKSDIR $HOOKSDIR
 
     # Move existing hooks to .githooks dir
-    $no_preserve || echo "Moving existing hooks to $HOOKSDIR..."
+    $preserve && echo "Moving existing hooks to $HOOKSDIR..." ||:
     shopt -s nullglob
     for item in $GITHOOKSDIR/*; do
         if ! [[ -h $item && $(readlink $item) =~ git-hooks-multiplexer ]]; then
-            if $no_preserve; then
-                rm -f $item
-            else
+            if $preserve; then
                 mv -v $item $HOOKSDIR/$(basename $item)-moved | sed "s/^/    /"
+            else
+                rm -f $item
             fi
         fi
     done
@@ -633,6 +637,7 @@ function git_hooks_install_template {
 	    This will cause any subsequently cloned or created repositories to
 	    automatically populate their .git/hooks directories with the
 	    multiplexer script and provide them with the 'git hooks' alias.
+
 	    To update previously cloned repositories, just run 'git init' again.
 	HELP
 
