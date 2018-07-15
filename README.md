@@ -124,23 +124,25 @@ or future repositonies.
         include the names of the standard git hooks:
 
             applypatch-msg
-            pre-applypatch
-            post-applypatch
-            pre-commit
-            prepare-commit-msg
             commit-msg
-            post-commit
-            pre-rebase
+            fsmonitor-watchman
+            post-applypatch
             post-checkout
+            post-commit
             post-merge
-            pre-push
-            pre-receive
-            update
             post-receive
-            post-update
-            push-to-checkout
-            pre-auto-gc
             post-rewrite
+            post-update
+            pre-applypatch
+            pre-auto-gc
+            pre-commit
+            pre-push
+            pre-rebase
+            pre-receive
+            prepare-commit-msg
+            push-to-checkout
+            sendemail-validate
+            update
 
     <custom script name>...
         The command accepts a list of hook script names. These names must

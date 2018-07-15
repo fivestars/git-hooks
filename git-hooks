@@ -5,23 +5,25 @@ set -eu -o pipefail
 # hooks if git gets new hooks in future versions. See check-support for details.
 GITHOOKS=(
     applypatch-msg
-    pre-applypatch
-    post-applypatch
-    pre-commit
-    prepare-commit-msg
     commit-msg
-    post-commit
-    pre-rebase
+    fsmonitor-watchman
+    post-applypatch
     post-checkout
+    post-commit
     post-merge
-    pre-push
-    pre-receive
-    update
     post-receive
-    post-update
-    push-to-checkout
-    pre-auto-gc
     post-rewrite
+    post-update
+    pre-applypatch
+    pre-auto-gc
+    pre-commit
+    pre-push
+    pre-rebase
+    pre-receive
+    prepare-commit-msg
+    push-to-checkout
+    sendemail-validate
+    update
 )
 
 
@@ -80,7 +82,7 @@ function md_inline_monospace {
 
 function md_block_monospace {
     if $USE_MARKDOWN; then
-        echo -e "\`\`\`\n$@\n\`\`\`"
+        echo -e "\`\`\`\\n$@\\n\`\`\`"
     else
         echo "$@"
     fi
@@ -319,7 +321,7 @@ function git_hooks__extract_desc {
 function git_hooks__extract_help {
     local cmd
     while read cmd; do
-        printf "\n    %s\n" "$(git_hooks__extract_desc $cmd)"
+        printf "\\n    %s\\n" "$(git_hooks__extract_desc $cmd)"
         git_hooks__extract_doc -h git_hooks_${cmd//-/_} | sed 's/^/    /g'
     done < <(grep '$(git_hooks__extract_desc [-a-zA-Z0-9]\+)$' ${BASH_SOURCE} | sed 's/.* \(.*\))/\1/g')
 }
@@ -364,7 +366,7 @@ function git_hooks_help {
     done
     shift
     if [[ -n ${1:-} ]]; then
-        printf "git hooks %s\n" $(git_hooks__extract_desc $1)
+        printf "git hooks %s\\n" $(git_hooks__extract_desc $1)
         echo
         git_hooks__extract_doc -h "git_hooks_${1//-/_}"
     else
@@ -649,25 +651,26 @@ function git_hooks_install_template {
         git config --global --path init.templatedir $templatedir
     fi
 
-    echo -e "\nAdding multiplexer hooks to $templatedir/hooks directory..."
+    echo -e "\\nAdding multiplexer hooks to $templatedir/hooks directory..."
     mkdir -p $templatedir/hooks
     pushd $templatedir/hooks >/dev/null
     for hook in ${GITHOOKS[*]}; do
-        if ! [[ -h $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
+        if ! [[ -L $hook && -e $hook && $(readlink $hook) =~ git-hooks-multiplexer ]]; then
+            echo "$hook -> $(readlink $hook)"
             ln -is $BASH_SOURCE_DIR/git-hooks-multiplexer $hook
         fi
     done
     popd >/dev/null
 
-    echo -e "\nAdding 'git hooks' alias to $templatedir/config..."
+    echo -e "\\nAdding 'git hooks' alias to $templatedir/config..."
     touch $templatedir/config
-    git config -f $templatedir/config alias.hooks !$BASH_SOURCE_FULL
-
+    git config -f $templatedir/config --unset-all alias.hooks ||:
+    git config -f $templatedir/config alias.hooks "!$BASH_SOURCE_FULL"
     cat <<-EOF
 
-		These multiplexer hooks and the 'git hooks' alias will be installed on any new
-		repos created or cloned on this system  To enable this behavior for already
-		existing repos, run 'git init' in those repos again.
+	    These multiplexer hooks and the 'git hooks' alias will be installed on any new
+	    repos created or cloned on this system  To enable this behavior for already
+	    existing repos, run 'git init' in those repos again.
 	EOF
 }
 
@@ -692,8 +695,8 @@ function git_hooks_uninstall_template {
         fi
 
         if [[ -f $templatedir/config ]]; then
-            echo -e "\nRemoving 'git hooks' alias from $templatedir/config..."
-            git config -f $templatedir/config --unset alias.hooks
+            echo -e "\\nRemoving 'git hooks' alias from $templatedir/config..."
+            git config -f $templatedir/config --unset-all alias.hooks ||:
         fi
     fi
 
@@ -720,19 +723,19 @@ function git_hooks_check_support {
             <(echo ${man_hooks[@]} | xargs -n1 | sort)
     ))
 
-    if [[ -n $known ]]; then
+    if [[ -n ${known[@]} ]]; then
         echo "These hooks are not supported by your current version of git:"
         echo ${known[@]} | xargs -n1 | sed 's/^/    /'
         echo
     fi
 
-    if [[ -n $found ]]; then
+    if [[ -n ${found[@]} ]]; then
         echo "These hooks are not yet supported by git-hooks:"
         echo ${found[@]} | xargs -n1 | sed 's/^/    /'
         echo
     fi
 
-    if [[ -z $known && -z $found ]]; then
+    if [[ -z ${known[@]} && -z ${found[@]} ]]; then
         echo "All hooks are currently supported"
     fi
 }
@@ -883,7 +886,7 @@ function git_hooks_run {
     shift
 
     if [[ -z ${1:-} ]]; then
-        echo -e "Must provide a git hook or custom script name:\n" >&2
+        echo -e "Must provide a git hook or custom script name:\\n" >&2
         git_hooks_list
         return 1
     elif git_hooks__is_git_hook $1; then
@@ -900,7 +903,7 @@ function git_hooks_run {
     case $hook in
         applypatch-msg) [[ $# == 1 ]] || { echo "Missing 1 parameter" >&2; return 1; };;
         commit-msg) [[ $# == 1 ]] || { echo "Missing 1 parameter" >&2; return 1; };;
-        prepare-commit-msg) [[ $# == 3 ]] || { echo "Missing 3 parameters" >&2; return 1; };;
+        prepare-commit-msg) [[ $# == 1 ]] || { echo "Missing 1 parameters" >&2; return 1; };;
         update) [[ $# == 3 ]] || { echo "Missing 3 parameters" >&2; return 1; };;
         pre-receive|post-receive) [[ -t 0 ]] && { echo "Expected contents on stdin" >&2; return 1; };;
     esac
@@ -1027,7 +1030,7 @@ function git_hooks_include {
 
     if [[ -z $@ ]]; then
         for item in $BASH_SOURCE_DIR/included/*; do
-            printf "%-32s %s\n" $(basename $item) "$(awk 'NR==1,/<<-DESC/{next}/^DESC/,NR==0{next}{print}' $item)"
+            printf "%-32s %s\\n" $(basename $item) "$(awk 'NR==1,/<<-DESC/{next}/^DESC/,NR==0{next}{print}' $item)"
         done
     else
         for item in "$@"; do
