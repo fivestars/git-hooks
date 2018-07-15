@@ -17,13 +17,17 @@ __git_hooks_scripts () {
 
 _git_hooks () {
     local subcommands="list enable disable run install uninstall install-command uninstall-command install-template uninstall-template include check-support parallel show-input config help"
-    local subcommand="$(__git_find_on_cmdline "$subcommands")"
-    if [ -z "$subcommand" ]; then
+    local subcommand
+    local bash_source_dir
+    local num_cores
+
+    subcommand="$(__git_find_on_cmdline "$subcommands")"
+    if [[ -z "$subcommand" ]]; then
         __gitcomp "$subcommands"
         return
     fi
 
-    local git_hook_names="applypatch-msg pre-applypatch post-applypatch pre-commit prepare-commit-msg commit-msg post-commit pre-rebase post-checkout post-merge pre-push pre-receive update post-receive post-update push-to-checkout pre-auto-gc post-rewrite"
+    local git_hook_names="applypatch-msg commit-msg fsmonitor-watchman post-applypatch post-checkout post-commit post-merge post-receive post-rewrite post-update pre-applypatch pre-auto-gc pre-commit pre-push pre-rebase pre-receive prepare-commit-msg push-to-checkout sendemail-validate update"
 
     case "$subcommand" in
     list)
@@ -47,21 +51,25 @@ _git_hooks () {
             *) ;;
         esac
         ;;
-    install-command|uninstall-command)
+    install-alias|uninstall-alias)
         case "$cur" in
             --*) __gitcomp "--global --core" ;;
             *) ;;
         esac
         ;;
+    install-template|uninstall-template)
+        ;;
     include)
-        local bash_source_dir=$(cd $(dirname "$BASH_SOURCE"); pwd)
+        bash_source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" || exit; pwd)
         __gitcomp "$(\ls "$bash_source_dir/included")"
+        ;;
+    check-support)
         ;;
     parallel)
         if [ $cword -lt 4 ]; then
             __gitcomp "$git_hook_names"
         elif [ $cword -eq 4 ]; then
-            local num_cores=$(grep -c processor /proc/cpuinfo)
+            num_cores=$(grep -c processor /proc/cpuinfo)
             __gitcomp "- $(seq 1 $num_cores) max"
         fi
         ;;
@@ -71,6 +79,14 @@ _git_hooks () {
         elif [ $cword -eq 4 ]; then
             __gitcomp "true false"
         fi
+        ;;
+    config)
+        ;;
+    help)
+        case "$cur" in
+            --*) __gitcomp "--markdown" ;;
+            *) ;;
+        esac
         ;;
     esac
 }

@@ -1,0 +1,141 @@
+#compdef git-hooks
+#description zsh completions for the git-hooks command
+
+
+__git_standard_hooks () {
+  local -a standard_hooks
+
+  standard_hooks=(
+    applypatch-msg
+    commit-msg
+    fsmonitor-watchman
+    post-applypatch
+    post-checkout
+    post-commit
+    post-merge
+    post-receive
+    post-rewrite
+    post-update
+    pre-applypatch
+    pre-auto-gc
+    pre-commit
+    pre-push
+    pre-rebase
+    pre-receive
+    prepare-commit-msg
+    push-to-checkout
+    sendemail-validate
+    update
+  );
+
+  _alternative \
+    "standard_hooks:standard_hook:(${standard_hooks[*]})"
+}
+
+
+__git_hooks () {
+  local repo
+  if repo=$(git rev-parse --show-toplevel) 2>/dev/null; then
+    _alternative \
+      "standard_hooks:standard_hook:__git_standard_hooks" \
+      "repo__git_hooks:repo_git_hook:_files -W $repo/.githooks"
+  fi
+}
+
+
+_git-hooks () {
+  local curcontext=$curcontext state line ret=1
+
+  _arguments -C \
+    ': :->command' \
+    '*:: :->option-or-argument' \
+    && ret=0
+
+  case $state in
+    (command)
+      local -a commands
+      local repo
+
+      commands=(
+        check-support:'view difference between the git hooks supported by git and git-hooks'
+        install-alias:'install the "git hooks" alias'
+        uninstall-alias:'remove the "git hooks" alias'
+        install-template:'install multiplexer hooks for all future repositories'
+        uninstall-template:'stop installing multiplexer hooks for all future repositories'
+        config:'display all the config settings managed by git-hooks'
+        help:'display the help text'
+      )
+
+      if repo=$(git rev-parse --show-toplevel 2>/dev/null); then
+        commands+=(
+          install:'install the multiplexer hooks into the .git/hooks directory'
+          uninstall:'remove the multiplexer hooks from the .git/hooks directory'
+          include:"copy a bundled script into your repository's .githooks directory"
+        )
+
+        if [[ -d "$repo/.githooks" ]]; then
+          commands+=(
+            parallel:'configure your hooks to be run in parallel'
+            list:'display all available hooks and their enabled status'
+            enable:'enable a set of hooks or an individual hook'
+            disable:'disable a set of hooks or an individual hook'
+            run:'run a set of hooks or an individual hook'
+            show-input:'configure your hooks to display the arguments and data they were invoked with'
+          )
+        fi
+      fi
+
+      _describe -t commands command commands && ret=0
+      ;;
+    (option-or-argument)
+      curcontext=${curcontext%:*}-$line[1]:
+
+      case ${line[1]} in
+        (list)
+          _arguments -S -s \
+            ': :__git_standard_hooks' \
+            && ret=0
+          ;;
+        (install)
+          _arguments -S -s \
+            '(-e --examples)'{-e,--examples}'[install bundled example hook handlers]' \
+            '(:)--no-preserve[discard any existing git hook scripts found in .git/hooks]' \
+            "(:)--no-alias[do not install \"git hooks\" into your repository's config]" \
+            && ret=0
+          ;;
+        (install-alias)
+          _arguments -S -s \
+            '(:)--global[add alias to git global config]' \
+            '(:)--core[add git-hooks command to git exec-path]' \
+            && ret=0
+          ;;
+        (uninstall-alias)
+          _arguments -S -s \
+            '(:)--global[remove alias from git global config]' \
+            '(:)--core[remove git-hooks command from git exec-path]' \
+            && ret=0
+          ;;
+        (help)
+          _arguments -S -s \
+            '(:)--markdown[generate markdown output]' \
+            && ret=0
+          ;;
+        (enable|disable)
+          _arguments -S -s \
+            '*:: :__git_hooks' \
+            && ret=0
+          ;;
+        (run)
+          _arguments -S -s \
+            ': :__git_hooks' \
+            && ret=0
+          ;;
+        (uninstall|install-template|uninstall-template|check-support|config)
+          ret=0
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
