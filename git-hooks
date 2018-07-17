@@ -289,9 +289,7 @@ function git_hooks__require_work_tree {
 
 
 function git_hooks__require_hook_dir {
-    if [[ -z $HOOKSDIR ]]; then
-        echo ".githooks directory required but not found" >&2 && return 1
-    fi
+    mkdir -p $HOOKSDIR
 }
 
 
@@ -307,7 +305,10 @@ function git_hooks__is_git_hook {
 function git_hooks__git_hook_prefix {
     local hook name=$1
     for hook in ${GITHOOKS[@]}; do
-        (echo $name | grep -q ^"$hook-") && echo $hook && return 0
+        case "$name" in
+            ${hook}*) echo $hook; return 0 ;;
+            *) ;;
+        esac
     done
     return 1
 }
@@ -752,7 +753,7 @@ function git_hooks_list {
 	    hook. If any are disabled, it is noted in the output.
 	HELP
 
-    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks= hook name section path
+    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook included_hook name path
 
     for HOOK in ${HOOKS[@]}; do
         if ! git_hooks__is_git_hook $HOOK; then
@@ -767,13 +768,17 @@ function git_hooks_list {
             for path in $HOOKSDIR/${HOOK}-*; do
                 if [[ -f ${path} && -n ${path%%*~} ]]; then
                     if git config --get-regexp "hooks\.${path##*/}\.enabled" false &>/dev/null; then
-                        hooks="${hooks:+$hooks\0}$path (disabled)"
+                        hooks="${hooks:+$hooks\0}${path##*/} (disabled)"
                     elif $disabled;then
-                        hooks="${hooks:+$hooks\0}$path (disabled by $HOOK)"
+                        hooks="${hooks:+$hooks\0}${path##*/} (disabled by $HOOK)"
                     elif [[ ! -x $path ]]; then
-                        hooks="${hooks:+$hooks\0}$path (not executable)"
+                        if included_hook=$(git config -f "$path" git-hooks.included 2>/dev/null); then
+                            hooks="${hooks:+$hooks\0}${path##*/}"
+                        else
+                            hooks="${hooks:+$hooks\0}${path##*/} (not executable)"
+                        fi
                     else
-                        hooks="${hooks:+$hooks\0}$path"
+                        hooks="${hooks:+$hooks\0}${path##*/}"
                     fi
                 fi
             done
@@ -1028,19 +1033,25 @@ function git_hooks_include {
 	    purposes will be displayed.
 	HELP
 
-    if [[ -z $@ ]]; then
-        for item in $BASH_SOURCE_DIR/included/*; do
-            printf "%-32s %s\\n" $(basename $item) "$(awk 'NR==1,/<<-DESC/{next}/^DESC/,NR==0{next}{print}' $item)"
-        done
-    else
-        for item in "$@"; do
-            if [[ -f $BASH_SOURCE_DIR/included/$item ]]; then
-                cp -iv $BASH_SOURCE_DIR/included/$item $HOOKSDIR
-            else
-                echo "Unrecognized script: $item"
+    items="$*"
+    while [[ -z "$items" ]]; do
+        for item in "$BASH_SOURCE_DIR"/included/*; do
+            if git_hooks__git_hook_prefix "${item##*/}" &>/dev/null; then
+                printf "%-32s %s\\n" "${item##*/}" "$(awk 'NR==1,/<<-?DESC/{next}/^DESC/,NR==0{next}{print}' "$item")"
             fi
         done
-    fi
+
+        printf "\\nChoose script[s] to include: "
+        read -r items
+    done
+
+    for item in $items	; do
+        if [[ -f $BASH_SOURCE_DIR/included/$item ]]; then
+            git config -f "$HOOKSDIR/$item" git-hooks.included "$item"
+        else
+            echo "Unrecognized script: $item"
+        fi
+    done
 }
 
 
@@ -1085,7 +1096,7 @@ case $COMMAND in
         elif ! git_hooks__require_hook_dir; then
             exit 1
         elif [[ ! -e $HOOKSDIR ]]; then
-            echo "No hooks installed for this repository. Use './git-hooks install' to get started." >&2
+            echo "No hooks installed for this repository. Use 'git-hooks install' to get started." >&2
             exit 1
         fi
         ;;

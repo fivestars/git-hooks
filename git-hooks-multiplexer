@@ -6,6 +6,7 @@ set -e
 
 # Determine if we're being run explicitly from git-hooks
 export GITHOOKS_RUN=${GITHOOKS_RUN:-false}
+export GITHOOKS_HOME=$(dirname $(git config alias.hooks) | sed 's/!//')
 
 # This script will run all configured hooks found in <repository>/.githooks
 # and all hooks found by running:
@@ -115,7 +116,13 @@ if ls .githooks/${HOOK}-* &>/dev/null; then
                 || git config --get-regexp "hooks\.${hook##*/}\.enabled" false &>/dev/null; }; then
                 disabled="${disabled:+$disabled\0}$hook"
             elif [[ ! -x $hook ]]; then
-                nonexecutable="${nonexecutable:+$nonexecutable\0}$hook"
+                if included_hook=$(git config -f "$hook" git-hooks.included 2>/dev/null); then
+                    hook="$GITHOOKS_HOME/included/$included_hook"
+                    hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $hook"
+                    count=$(( count + 1 ))
+                else
+                    nonexecutable="${nonexecutable:+$nonexecutable\0}$hook"
+                fi
             else
                 hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $hook"
                 count=$(( count + 1 ))

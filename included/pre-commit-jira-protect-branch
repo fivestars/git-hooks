@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Prevent accidental commits to protected branches
+DESC
+
+: <<HELP
+Mark branches as protected by adding them to a .protected file in the top-level
+repository directory. By default, only master is protected.
+HELP
+
+# Get our useful functions (be sure to provide lib path as source argument)
+. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if is_protected_branch "$branch"; then
+    printf "${c_prompt}%s${c_reset}" "Do you really want to commit directly to protected branch \"$branch\"? ([y]es/[n]o): "
+    read -r response
+    case $response in
+        yes|y)  ;;
+        *)      move_to_branch "$(jira_get_new_branch_name)" ;;
+    esac
+fi

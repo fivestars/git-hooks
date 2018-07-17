@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Ensure your branch names are up to snuff
+DESC
+
+: <<HELP
+Mark branches as protected by adding them to a .protected file in the top-level
+repository directory. By default, only master is protected.
+HELP
+
+# Get our useful functions
+. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+if ! is_protected_branch "$branch"; then
+    move_to_branch "$(jira_ensure_conforming_branch_name "$branch")"
+fi
