@@ -1081,6 +1081,21 @@ else
     HOOKSDIR=
 fi
 
+# Out-of-date check
+#############################################
+last_check=$(git config --global git-hooks.last-check 2>/dev/null) || last_check=0
+if (( "$(date -d "last week" "+%s")" > last_check )); then
+    (
+        cd "$(dirname "$BASH_SOURCE")";
+        git fetch &>/dev/null;
+        behind="$(git rev-list HEAD..origin/master | wc -l)";
+        if ((behind)); then
+            printf "git-hooks is %s commits behind. Consider pulling latest code.\\n" "$behind"
+        fi
+    )
+    git config --global git-hooks.last-check "$(date "+%s")"
+fi
+
 # Main functionality
 #############################################
 
