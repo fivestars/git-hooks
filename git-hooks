@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+. "$(dirname "${BASH_SOURCE[@]}")/included/lib/colors.sh" "$(dirname "${BASH_SOURCE[@]}")/included/lib"
+
+c_error="${c_error:-${red}}"
+c_missing="${c_prompt:-${b_black}}"
+
 # Hard-coded here for speed, but might get out of sync with actual supported
 # hooks if git gets new hooks in future versions. See check-support for details.
 GITHOOKS=(
@@ -753,7 +758,7 @@ function git_hooks_list {
 	    hook. If any are disabled, it is noted in the output.
 	HELP
 
-    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook included_hook name path
+    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook name path count total connector
 
     for HOOK in ${HOOKS[@]}; do
         if ! git_hooks__is_git_hook $HOOK; then
@@ -761,34 +766,49 @@ function git_hooks_list {
             continue
         fi
 
-        disabled=false
-        git config --get-regexp "hooks\.$HOOK\.enabled" false &>/dev/null && disabled=true
-        hooks=
+        total=0
         if ls $HOOKSDIR/${HOOK}-* &>/dev/null; then
             for path in $HOOKSDIR/${HOOK}-*; do
                 if [[ -f ${path} && -n ${path%%*~} ]]; then
-                    if git config --get-regexp "hooks\.${path##*/}\.enabled" false &>/dev/null; then
-                        hooks="${hooks:+$hooks\0}${path##*/} (disabled)"
+                    ((total+=1))
+                fi
+            done
+        fi
+
+        count=0
+        hooks=""
+        git config --get-regexp "hooks\\.$HOOK\\.enabled" false &>/dev/null && disabled=true || disabled=false
+        if ls $HOOKSDIR/${HOOK}-* &>/dev/null; then
+            for path in $HOOKSDIR/${HOOK}-*; do
+                if [[ -f ${path} && -n ${path%%*~} ]]; then
+                    $disabled && connector="${c_error}" || connector=""
+                    ((++count < total)) && connector+=├─ || connector+=└─
+                    if git config --get-regexp "hooks\\.${path##*/}\\.enabled" false &>/dev/null; then
+                        hooks+="\\0${connector}${c_error}${path##*/${HOOK}-}${c_reset} (disabled)"
                     elif $disabled;then
-                        hooks="${hooks:+$hooks\0}${path##*/} (disabled by $HOOK)"
+                        hooks+="\\0${connector}${c_error}${path##*/${HOOK}-}${c_reset} (disabled by $HOOK)"
                     elif [[ ! -x $path ]]; then
                         if included_hook=$(git config -f "$path" git-hooks.included 2>/dev/null); then
-                            hooks="${hooks:+$hooks\0}${path##*/}"
+                            if [[ -f "$included_hook" ]]; then
+                                hooks+="\\0${connector}${path##*/${HOOK}-}${c_reset}"
+                            else
+                                hooks+="\\0${connector}${c_missing}${path##*/${HOOK}-}${c_reset} (not found)"
+                            fi
                         else
-                            hooks="${hooks:+$hooks\0}${path##*/} (not executable)"
+                            hooks+="\\0${connector}${c_error}${path##*/${HOOK}-}${c_reset} (not executable)"
                         fi
                     else
-                        hooks="${hooks:+$hooks\0}${path##*/}"
+                        hooks+="\\0${connector}${path##*/${HOOK}-}${c_reset}"
                     fi
                 fi
             done
         fi
 
         if [[ -n $hooks ]]; then
-            echo -n $HOOK
+            $disabled && echo -en "${c_error}" || :
+            echo -en "${HOOK}─┐${c_reset}"
             $disabled && echo " (disabled)" || echo
-            echo "----------------------"
-            echo -en $hooks | xargs -0 -L1
+            echo -en ${hooks:2} | xargs -0 -L1 printf " %${#HOOK}s%s\\n" ""
             echo
         fi
     done
@@ -1045,7 +1065,7 @@ function git_hooks_include {
         read -r items
     done
 
-    for item in $items	; do
+    for item in $items; do
         if [[ -f $BASH_SOURCE_DIR/included/$item ]]; then
             git config -f "$HOOKSDIR/$item" git-hooks.included "$item"
         else

@@ -118,14 +118,12 @@ if ls .githooks/${HOOK}-* &>/dev/null; then
             elif [[ ! -x $hook ]]; then
                 if included_hook=$(git config -f "$hook" git-hooks.included 2>/dev/null); then
                     hook="$GITHOOKS_HOME/included/$included_hook"
-                    hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $hook"
-                    count=$(( count + 1 ))
+                    hooks="${hooks:+$hooks\0}$tmpfile.$((count++)) $tmpfile.stdin $hook"
                 else
                     nonexecutable="${nonexecutable:+$nonexecutable\0}$hook"
                 fi
             else
-                hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $hook"
-                count=$(( count + 1 ))
+                hooks="${hooks:+$hooks\0}$tmpfile.$((count++)) $tmpfile.stdin $hook"
             fi
         fi
     done
@@ -144,8 +142,7 @@ while read line; do
     elif { ! $GITHOOKS_RUN; } && git config --get-regexp "hooks\.$HOOK\.enabled" false &>/dev/null; then
         disabled="${disabled:+$disabled\0}$path"
     else
-        hooks="${hooks:+$hooks\0}$tmpfile.$count $tmpfile.stdin $path"
-        count=$(( count + 1 ))
+        hooks="${hooks:+$hooks\0}$tmpfile.$((count++)) $tmpfile.stdin $path"
     fi
 done < <(git config --get-regexp "hooks\.${HOOK}-.*\.enabled" true)
 

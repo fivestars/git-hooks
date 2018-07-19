@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Shorthand for common colors
+black="\\e[0;30m"
+b_black="\\e[1;30m"
+red="\\e[0;31m"
+b_red="\\e[1;31m"
+green="\\e[0;32m"
+b_green="\\e[1;32m"
+yellow="\\e[0;33m"
+b_yellow="\\e[1;33m"
+blue="\\e[0;34m"
+b_blue="\\e[1;34m"
+pink="\\e[0;35m"
+b_pink="\\e[1;35m"
+cyan="\\e[0;36m"
+b_cyan="\\e[1;36m"
+white="\\e[0;37m"
+b_white="\\e[1;37m"
+c_reset="\\e[0m"

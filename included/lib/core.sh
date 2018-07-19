@@ -1,19 +1,6 @@
 #!/usr/bin/env bash
 
-# Shorthand for common colors (just used for )
-red="\\e[0;31m"
-b_red="\\e[1;31m"
-green="\\e[0;32m"
-b_green="\\e[1;32m"
-yellow="\\e[0;33m"
-b_yellow="\\e[1;33m"
-blue="\\e[0;34m"
-b_blue="\\e[1;34m"
-pink="\\e[0;35m"
-b_pink="\\e[1;35m"
-cyan="\\e[0;36m"
-b_cyan="\\e[1;36m"
-c_reset="\\e[0m"
+. "$1/colors.sh" "$1"
 
 # Themed colors - export these in your shell to override
 c_good="${c_good:-${green}}"
@@ -21,6 +8,7 @@ c_error="${c_error:-${red}}"
 c_prompt="${c_prompt:-${b_cyan}}"
 c_action="${c_action:-${cyan}}"
 c_value="${c_value:-${yellow}}"
+
 
 function is_protected_branch () {
     # Fail if branch is not found in .protected,
