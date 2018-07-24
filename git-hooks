@@ -3,8 +3,13 @@ set -eu -o pipefail
 
 . "$(dirname "${BASH_SOURCE[@]}")/included/lib/colors.sh" "$(dirname "${BASH_SOURCE[@]}")/included/lib"
 
-c_error="${c_error:-${red}}"
-c_missing="${c_prompt:-${b_black}}"
+if $(git config --bool git-hooks.color); then
+    c_error="${c_error:-${red}}"
+    c_missing="${c_missing:-${b_black}}"
+else
+    c_error=""
+    c_missing=""
+fi
 
 # Hard-coded here for speed, but might get out of sync with actual supported
 # hooks if git gets new hooks in future versions. See check-support for details.
@@ -758,8 +763,11 @@ function git_hooks_list {
 	    hook. If any are disabled, it is noted in the output.
 	HELP
 
-    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook name path count total connector
+    local HOOKS=${*:-${GITHOOKS[*]}} HOOK disabled hooks hook name path count total unicode connector
 
+    unicode=$(git config --bool git-hooks.unicode) || unicode=true
+
+    echo -en "${c_reset}"
     for HOOK in ${HOOKS[@]}; do
         if ! git_hooks__is_git_hook $HOOK; then
             echo "Hook must be a valid git hook name: $HOOK" >&2
@@ -782,14 +790,18 @@ function git_hooks_list {
             for path in $HOOKSDIR/${HOOK}-*; do
                 if [[ -f ${path} && -n ${path%%*~} ]]; then
                     $disabled && connector="${c_error}" || connector=""
-                    ((++count < total)) && connector+=├─ || connector+=└─
+                    if ((++count < total)); then
+                        $unicode && connector+="├─" || connector+="|-"
+                    else
+                        $unicode && connector+="└─" || connector+="|-"
+                    fi
                     if git config --get-regexp "hooks\\.${path##*/}\\.enabled" false &>/dev/null; then
                         hooks+="\\0${connector}${c_error}${path##*/${HOOK}-}${c_reset} (disabled)"
                     elif $disabled;then
                         hooks+="\\0${connector}${c_error}${path##*/${HOOK}-}${c_reset} (disabled by $HOOK)"
                     elif [[ ! -x $path ]]; then
                         if included_hook=$(git config -f "$path" git-hooks.included 2>/dev/null); then
-                            if [[ -f "$included_hook" ]]; then
+                            if [[ -f "$BASH_SOURCE_DIR/included/$included_hook" ]]; then
                                 hooks+="\\0${connector}${path##*/${HOOK}-}${c_reset}"
                             else
                                 hooks+="\\0${connector}${c_missing}${path##*/${HOOK}-}${c_reset} (not found)"
@@ -806,7 +818,7 @@ function git_hooks_list {
 
         if [[ -n $hooks ]]; then
             $disabled && echo -en "${c_error}" || :
-            echo -en "${HOOK}─┐${c_reset}"
+            $unicode && echo -en "${HOOK}─┐${c_reset}" || echo -en "${HOOK}-|${c_reset}"
             $disabled && echo " (disabled)" || echo
             echo -en ${hooks:2} | xargs -0 -L1 printf " %${#HOOK}s%s\\n" ""
             echo

@@ -9,13 +9,12 @@ DESC
 Provide a custom commit message in a .gitmessage file in the top-level
 repository directory. It will try to discover the Jira ticket key from
 the branch name. If not found, it will then prompt you for the key. The
-key will then be substituted for any '$JIRA' instance found in the
+key will then be substituted for any '\$JIRA' instance found in the
 .gitmessage file.
 
 If the commit fails due to a 'commit-msg-format' failure, this hook
 will reload the failed message on the next commit at the current HEAD.
 HELP
-
 
 if [[ -n ${2:-} ]]; then
   # Don't use repo message if this is not a normal commit
