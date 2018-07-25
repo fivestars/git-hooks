@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck source=included/lib/colors.sh
 . "$1/colors.sh" "$1"
 
 # Themed colors - export these in your shell to override
@@ -27,21 +28,6 @@ function is_protected_branch () {
     protected="^${protected// /\$\\|\^}\$"
 
     grep -q "$protected" <<<"$1"
-}
-
-function is_valid_branch_name () {
-    # Fail if the branch name does not match the expected pattern
-    # Examples of valid branch names:
-    #    JIRA-1
-    #    JIRA-1234
-    #    JIRA-1234-some-stuff
-    #    myname-JIRA-1234
-    #    myname-JIRA-1234-some-stuff
-    #
-    # Return: 1 or 0
-    # Stdout: <none>
-    # Stderr: <none>
-    grep -q '^\([a-z]\+-\)\?[A-Z]\+-[0-9]\+\(-[a-z0-9]\+\)*$' <<<"$1"
 }
 
 function open_uri () {
@@ -91,7 +77,7 @@ function move_to_branch () {
     branch="$(git rev-parse --abbrev-ref HEAD)"
 
     if [[ "$new_branch" != "$branch" ]]; then
-        printf "\\n${c_good}%s ${c_value}%s${c_reset}\\n" "Moving to new branch:" "$new_branch"
+        printf "\\n${c_action}%s ${c_value}%s${c_reset}\\n" "Moving to new branch:" "$new_branch"
 
         # This will succeed but return error code 1 during a commit, hence the ||:
         git checkout -b "$new_branch" ||:
@@ -100,12 +86,14 @@ function move_to_branch () {
         [[ "$(git rev-parse --abbrev-ref HEAD)" == "$new_branch" ]]
 
         # Clean up old branch?
-        printf  "${c_prompt}%s${c_reset}" "Delete old branch \"$branch\"? ([y]es/[n]o): "
+        if ! is_protected_branch "$branch"; then
+            printf  "${c_prompt}%s${c_reset}" "Delete old branch \"$branch\"? ([y]es/[n]o): "
 
-        read -r response
-        case $response in
-            yes|y)  git branch -D "$branch" ;;
-            *)      ;;
-        esac
+            read -r response
+            case $response in
+                yes|y)  git branch -D "$branch" ;;
+                *)      ;;
+            esac
+        fi
     fi
 }

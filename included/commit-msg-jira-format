@@ -6,8 +6,8 @@ Validate the format of a commit message
 DESC
 
 # Get our useful functions (be sure to provide lib path as source argument)
-# shellcheck source=included/lib/core.sh
-. "$(dirname "${BASH_SOURCE[@]}")/lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
 
 commit_msg="$1"
 
@@ -44,10 +44,45 @@ sed -i.bckp -e 's/^#.*//' -e '/./,$!d' "$commit_msg"; rm -f "${commit_msg}.bckp"
 # shellcheck disable=SC2094
 { rm "$commit_msg"; uniq >"$commit_msg"; } <"$commit_msg"
 
+jira_issue_regex="\\[[A-Z]\\+-[0-9]\\+\\]"
+
 subject=$(head -n 1 "$commit_msg")
 
+# Check subject line has Jira issue
+if ! jira_issue=$(grep -o "^${jira_issue_regex}" <<<"$subject"); then
+    printf "${c_error}%s${c_reset}\\n" "Commit message subject must begin with a [JIRA-####] label"
+    printf "${c_error}%s${c_reset}\\n" "========================================================================"
+    printf "${c_error}%s${c_reset}\\n" "$subject"
+    printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+    success=false
+else
+    # Check for a space after the Jira issue
+    if ! grep -q "^${jira_issue_regex} " <<<"$subject"; then
+        remainder="${subject:${#jira_issue}}"
+        printf "${c_error}%s${c_reset}\\n" "Commit message subject must have a space after the $jira_issue label"
+        printf "${c_error}%s${c_reset}\\n" "========================================================================"
+        printf "%s${c_error}%s${c_reset}%s\\n" "${jira_issue:0: -1}" "${jira_issue: -1}${remainder:0:1}" "${remainder:1:${#remainder}}"
+        printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+        success=false
+    fi
+
+    # Check for a single space after the Jira issue
+    if grep -q "^${jira_issue_regex}  " <<<"$subject"; then
+        pattern="(^\\[[A-Z]+-[0-9]+)(\\] +[^ ])(.*)"
+        printf "${c_error}%s${c_reset}\\n" "Commit message subject must have a single space after the $jira_issue label"
+        printf "${c_error}%s${c_reset}\\n" "========================================================================"
+        printf "%s${c_error}%s${c_reset}%s\\n" "$(sed -E "s/$pattern/\\1/" <<<"$subject")" "$(sed -E "s/$pattern/\\2/" <<<"$subject")" "$(sed -E "s/$pattern/\\3/" <<<"$subject")"
+        printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+        success=false
+    fi
+fi
+
+pattern="(^\\[[A-Z]+-[0-9]+\\] *)?(.*)"
+jira_issue=$(sed -E "s/${pattern}/\\1/" <<<"$subject")
+subject_msg=$(sed -E "s/${pattern}/\\2/" <<<"$subject")
+
 # Check that subject message exists
-case "$subject" in
+case "$subject_msg" in
     "") printf "${c_error}%s${c_reset}\\n" "Must provide commit message subject"
         printf "${c_error}%s${c_reset}\\n" "========================================================================"
         printf "${c_error}%s${c_reset}\\n" "$subject"
@@ -56,11 +91,11 @@ case "$subject" in
         ;;
     *)
         # Check subject line capitalization
-        case "${subject:0:1}" in
+        case "${subject_msg:0:1}" in
             [[:upper:]]) ;;
             *)  printf "${c_error}%s${c_reset}\\n" "Commit message subject must begin with a capitalized letter"
                 printf "${c_error}%s${c_reset}\\n" "========================================================================"
-                printf "${c_error}%s${c_reset}%s\\n" "${subject:0:1}" "${subject:1:${#subject}}"
+                printf "%s${c_error}%s${c_reset}%s\\n" "${jira_issue}" "${subject_msg:0:1}" "${subject_msg:1:${#subject_msg}}"
                 printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
                 success=false
                 ;;

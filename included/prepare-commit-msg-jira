@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Populate the commit message with a Jira ticket id
+DESC
+
+: <<HELP
+For commit messages that contain the '\$JIRA' string, this will derive the Jira
+issue id from the branch name, or failing that, prompt the user to manually enter
+the issue id. It then applies that issue id to the commit message, substituting
+all '\$JIRA' instances with the issue id.
+HELP
+
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+
+if [[ -n ${2:-} ]]; then
+  # Don't apply this process if this is not a normal commit
+  exit
+elif grep -q "\$JIRA" "$1"; then
+  # Found a commit message that could use a Jira ticket substitution
+
+  # Get our Jira issue id and substitute it for $JIRA in the received commit message
+  if branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); then
+    jira_ticket=$(jira_get_ticket_from_branch_name "$branch" || jira_get_ticket)
+  else
+    jira_ticket=$(jira_get_ticket)
+  fi
+
+  printf "${c_action}%s ${c_value}%s ${c_action}%s${c_reset}\\n" "Applying Jira ticket" "$jira_ticket" "to commit message"
+  tmpfile=$(mktemp -t git-commit-msg-template.XXXX); trap 'rm -f $tmpfile' EXIT
+  JIRA="$jira_ticket" envsubst "\$JIRA" <"$1" >"$tmpfile"
+  mv "$tmpfile" "$1"
+fi

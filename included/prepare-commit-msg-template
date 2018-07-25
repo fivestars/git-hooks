@@ -13,25 +13,33 @@ If the commit fails due to a 'commit-msg-format' failure, this hook
 will reload the failed message on the next commit at the current HEAD.
 HELP
 
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
 
-if [[ -n $2 ]]; then
-  # Don't use repo message if this is not a normal commit
+# This filename format is mirrored in commit-msg-format and commit-msg-jira-format,
+# so be sure to update that if you change these.
+tmp_msg_prefix="git-commit-msg-$(basename $(git rev-parse --show-toplevel))"
+tmp_msg_filename="/tmp/${tmp_msg_prefix}-$(git rev-parse --short HEAD 2>/dev/null ||:)"
+
+if [[ -n ${2:-} ]]; then
+  # Don't use repo's .gitmessage if this is not a normal commit
   exit
-elif [[ -f /tmp/git-msg-$(git rev-parse --short HEAD) ]]; then
+elif [[ -f "$tmp_msg_filename" ]]; then
   # Found the failed commit message created by commit-msg-format
-  printf "\e[0;36m%s\e[0m\n" "Found previous commit message for these changes"
+  printf "${c_action}%s${c_reset}\\n" "Found previous commit message for these changes"
 
   # Use the previous message as a starting point
-  mv /tmp/git-msg-$(git rev-parse --short HEAD) $1
+  mv "$tmp_msg_filename" "$1"
 
   # Remove any lingering failed commit messages
-  rm -f /tmp/git-msg-*
+  rm -f "/tmp/${tmp_msg_prefix}-*"
 elif [[ -f .gitmessage ]]; then
   # Found a .gitmessage file in our repo
-  printf "\e[0;36m%s\e[0m\n" "Using $(basename $(git rev-parse --show-toplevel))/.gitmessage template"
+  printf "${c_action}%s${c_reset}\\n" "Using $(basename "$(git rev-parse --show-toplevel)")/.gitmessage template"
 
   # Prepend our .gitmessage to the standard hint text
   tmpfile=$(mktemp -t git-commit-msg-template.XXXX)
-  cat .gitmessage $1 >$tmpfile
-  mv $tmpfile $1
+  cat .gitmessage "$1" >"$tmpfile"
+  mv "$tmpfile" "$1"
 fi

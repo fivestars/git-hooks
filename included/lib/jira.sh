@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 
+# shellcheck source=included/lib/core.sh
 . "$1/core.sh" "$1"
+
+function jira_is_valid_branch_name () {
+    # Fail if the branch name does not match the expected pattern
+    # Examples of valid branch names:
+    #    JIRA-1
+    #    JIRA-1234
+    #    JIRA-1234-some-stuff
+    #    myname-JIRA-1234
+    #    myname-JIRA-1234-some-stuff
+    #
+    # Return: 1 or 0
+    # Stdout: <none>
+    # Stderr: <none>
+    grep -q '^\([a-z]\+-\)\?[A-Z]\+-[0-9]\+\(-[a-z0-9]\+\)*$' <<<"$1"
+}
+
+function jira_get_ticket_from_branch_name () {
+    local branch="$1"
+
+    jira_is_valid_branch_name "$branch" && sed "s/^[^A-Z]*\\([A-Z]\\+-[0-9]\\+\\).*$/\\1/" <<<"$branch"
+}
 
 function jira_ensure_conforming_branch_name () {
     # Check if the provided branch name is well-formed, and if not, prompt the user to enter a new
@@ -11,7 +33,7 @@ function jira_ensure_conforming_branch_name () {
     # Stderr: Instructions on how to provide the value
     local branch="$1"
 
-    if ! is_valid_branch_name "$branch"; then
+    if ! jira_is_valid_branch_name "$branch"; then
         printf >&2 "${c_error}%s${c_reset}\\n\\n" "Invalid branch name"
         jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)"
     else
