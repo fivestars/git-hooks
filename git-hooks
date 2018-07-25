@@ -1137,7 +1137,7 @@ COMMAND=${1:-list}; shift || :
 # Determine the correct command to run and pass it the rest of the un-parsed options
 case $COMMAND in
     # Require a git repository and a .githooks directory in the repository for these commands
-    list|disable|enable|run|parallel|show-input)
+    list|include|disable|enable|run|parallel|show-input)
         if ! git_hooks__require_git_dir; then
             exit 1
         elif ! git_hooks__require_hook_dir; then
@@ -1149,7 +1149,7 @@ case $COMMAND in
         ;;
 
     # Require a git repository but not a .githooks directory in the repository
-    install|uninstall|include)
+    install|uninstall)
         if ! git_hooks__require_git_dir; then
             exit 1
         fi
