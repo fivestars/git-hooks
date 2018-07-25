@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 : <<DESC
-Ensure your branch names are up to snuff
+Ensure your branch names contain a Jira issue id
 DESC
 
 : <<HELP

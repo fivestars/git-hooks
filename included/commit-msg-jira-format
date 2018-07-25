@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 : <<DESC
-Validate the format of a commit message
+Validate the format of a commit message for Jira-tracked projects
 DESC
 
 # Get our useful functions (be sure to provide lib path as source argument)

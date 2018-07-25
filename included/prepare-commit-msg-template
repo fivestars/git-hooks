@@ -23,23 +23,54 @@ tmp_msg_prefix="git-commit-msg-$(basename $(git rev-parse --show-toplevel))"
 tmp_msg_filename="/tmp/${tmp_msg_prefix}-$(git rev-parse --short HEAD 2>/dev/null ||:)"
 
 if [[ -n ${2:-} ]]; then
-  # Don't use repo's .gitmessage if this is not a normal commit
-  exit
+    # Don't use repo's .gitmessage if this is not a normal commit
+    exit
 elif [[ -f "$tmp_msg_filename" ]]; then
-  # Found the failed commit message created by commit-msg-format
-  printf "${c_action}%s${c_reset}\\n" "Found previous commit message for these changes"
+    # Found the failed commit message created by commit-msg-format
+    printf "${c_action}%s${c_reset}\\n" "Found previous commit message for these changes"
 
-  # Use the previous message as a starting point
-  mv "$tmp_msg_filename" "$1"
+    # Use the previous message as a starting point
+    mv "$tmp_msg_filename" "$1"
 
-  # Remove any lingering failed commit messages
-  rm -f "/tmp/${tmp_msg_prefix}-*"
-elif [[ -f .gitmessage ]]; then
-  # Found a .gitmessage file in our repo
-  printf "${c_action}%s${c_reset}\\n" "Using $(basename "$(git rev-parse --show-toplevel)")/.gitmessage template"
+    # Remove any lingering failed commit messages
+    rm -f "/tmp/${tmp_msg_prefix}-*"
+else
+    if [[ ! -f .gitmessage ]]; then
+        printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n\\n" "No " "$(basename "$(git rev-parse --show-toplevel)")/.gitmessage" " template file found"
+        printf "${c_action}%s${c_reset}\\n" "Recommended template file:"
+        read -r -d '' template <<-'EOF' ||:
+			[$JIRA]
+			# Subject: Description in the imperative voice
 
-  # Prepend our .gitmessage to the standard hint text
-  tmpfile=$(mktemp -t git-commit-msg-template.XXXX)
-  cat .gitmessage "$1" >"$tmpfile"
-  mv "$tmpfile" "$1"
+
+			# Summary: A paragraph or two explaining the reason for the change and a
+			#          high level explanation of what the changes do.
+
+			[$JIRA](https://fivestars.atlassian.net/browse/$JIRA)
+		EOF
+
+        printf "%s\\n\\n" "$template"
+
+        printf "${c_prompt}%s${c_reset}" "Use this template for this repo? ([y]es/[n]o): "
+        read -r response
+        printf "\\n"
+        case $response in
+            yes|y)  cat <<<"$template" > .gitmessage;
+                    # This will stage the file but not add it to the in-progress commit
+                    git add .gitmessage
+                    ;;
+
+            *)      printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "You will need to create the " "$(basename "$(git rev-parse --show-toplevel)")/.gitmessage" " template file and retry"
+                    exit 1
+                    ;;
+        esac
+    fi
+
+    # Found a .gitmessage file in our repo
+    printf "${c_action}%s${c_reset}\\n" "Using $(basename "$(git rev-parse --show-toplevel)")/.gitmessage template"
+
+    # Prepend our .gitmessage to the standard hint text
+    tmpfile=$(mktemp -t git-commit-msg-template.XXXX)
+    cat .gitmessage "$1" >"$tmpfile"
+    mv "$tmpfile" "$1"
 fi
