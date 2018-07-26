@@ -28,7 +28,7 @@ fi
 # in prepare-commit-msg-template.
 # Note: This filename format is mirrored in prepare-commit-msg-template, so be
 # sure to update that if you change these
-tmp_msg_prefix="git-commit-msg-$(basename $(git rev-parse --show-toplevel))"
+tmp_msg_prefix="git-commit-msg-$(basename "$(git rev-parse --show-toplevel)")"
 tmp_msg_filename="/tmp/${tmp_msg_prefix}-$(git rev-parse --short HEAD 2>/dev/null ||:)"
 cat "$commit_msg" >"$tmp_msg_filename"
 
@@ -50,29 +50,29 @@ subject=$(head -n 1 "$commit_msg")
 
 # Check subject line has Jira issue
 if ! jira_issue=$(grep -o "^${jira_issue_regex}" <<<"$subject"); then
-    printf "${c_error}%s${c_reset}\\n" "Commit message subject must begin with a [JIRA-####] label"
-    printf "${c_error}%s${c_reset}\\n" "========================================================================"
+    printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message subject must begin with a " "[JIRA-####]" " label"
+    printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
     printf "${c_error}%s${c_reset}\\n" "$subject"
-    printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+    printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
     success=false
 else
     # Check for a space after the Jira issue
     if ! grep -q "^${jira_issue_regex} " <<<"$subject"; then
         remainder="${subject:${#jira_issue}}"
-        printf "${c_error}%s${c_reset}\\n" "Commit message subject must have a space after the $jira_issue label"
-        printf "${c_error}%s${c_reset}\\n" "========================================================================"
+        printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message subject must have a space after the " "$jira_issue" " label"
+        printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
         printf "%s${c_error}%s${c_reset}%s\\n" "${jira_issue:0: -1}" "${jira_issue: -1}${remainder:0:1}" "${remainder:1:${#remainder}}"
-        printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+        printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
         success=false
     fi
 
     # Check for a single space after the Jira issue
     if grep -q "^${jira_issue_regex}  " <<<"$subject"; then
         pattern="(^\\[[A-Z]+-[0-9]+)(\\] +[^ ])(.*)"
-        printf "${c_error}%s${c_reset}\\n" "Commit message subject must have a single space after the $jira_issue label"
-        printf "${c_error}%s${c_reset}\\n" "========================================================================"
+        printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message subject must have a single space after the " "$jira_issue" " label"
+        printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
         printf "%s${c_error}%s${c_reset}%s\\n" "$(sed -E "s/$pattern/\\1/" <<<"$subject")" "$(sed -E "s/$pattern/\\2/" <<<"$subject")" "$(sed -E "s/$pattern/\\3/" <<<"$subject")"
-        printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+        printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
         success=false
     fi
 fi
@@ -84,9 +84,9 @@ subject_msg=$(sed -E "s/${pattern}/\\2/" <<<"$subject")
 # Check that subject message exists
 case "$subject_msg" in
     "") printf "${c_error}%s${c_reset}\\n" "Must provide commit message subject"
-        printf "${c_error}%s${c_reset}\\n" "========================================================================"
+        printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
         printf "${c_error}%s${c_reset}\\n" "$subject"
-        printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+        printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
         success=false
         ;;
     *)
@@ -94,9 +94,9 @@ case "$subject_msg" in
         case "${subject_msg:0:1}" in
             [[:upper:]]) ;;
             *)  printf "${c_error}%s${c_reset}\\n" "Commit message subject must begin with a capitalized letter"
-                printf "${c_error}%s${c_reset}\\n" "========================================================================"
+                printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
                 printf "%s${c_error}%s${c_reset}%s\\n" "${jira_issue}" "${subject_msg:0:1}" "${subject_msg:1:${#subject_msg}}"
-                printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+                printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
                 success=false
                 ;;
         esac
@@ -104,19 +104,19 @@ case "$subject_msg" in
         # Check subject line length
         subject_len=80
         if [[ "${#subject}" -gt "${subject_len}" ]]; then
-            printf "${c_error}%s${c_reset}\\n" "Commit message subject must be no longer than ${subject_len} characters"
-            printf "${c_error}%s${c_reset}\\n" "========================================================================"
+            printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message subject must be no longer than " "${subject_len}" " characters"
+            printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
             printf "%s${c_error}%s${c_reset}\\n" "${subject:0:${subject_len}}" "${subject:${subject_len}:${#subject}}"
-            printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+            printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
             success=false
         fi
 
         # Check subject line for trailing period
         case ${subject: -1} in
             \.) printf "${c_error}%s${c_reset}\\n" "Commit message subject must not end with a period"
-                printf "${c_error}%s${c_reset}\\n" "========================================================================"
+                printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
                 printf "%s${c_error}%s${c_reset}\\n" "${subject:0:-1}" "${subject: -1}"
-                printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+                printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
                 success=false
                 ;;
         esac
@@ -124,10 +124,10 @@ case "$subject_msg" in
         # Check for blank line after subject
         if [[ "$(wc -l <"$commit_msg")" -gt 1 ]] && [[ -n "$(head -n +2 "$commit_msg" | tail -n 1)" ]]; then
             printf "${c_error}%s${c_reset}\\n" "Commit message must have a blank line after the subject"
-            printf "${c_error}%s${c_reset}\\n" "========================================================================"
+            printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
             printf "${c_reset}%s${c_reset}\\n" "$subject"
             printf "${c_error}%s${c_reset}\\n" "$(head -n +2 "$commit_msg" | tail -n 1)"
-            printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+            printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
             success=false
         fi
         ;;
@@ -136,12 +136,12 @@ esac
 # Check message body line length
 message_line_len=100
 if [[ $(awk '{print length}' "$commit_msg" | sort -nr | head -n 1) -gt "$message_line_len" ]]; then
-    printf "${c_error}%s${c_reset}\\n" "Commit message contains lines longer than $message_line_len characters"
-    printf "${c_error}%s${c_reset}\\n" "========================================================================"
+    printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message contains lines longer than " "$message_line_len" " characters"
+    printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
     while read -r line; do
         printf "%s${c_error}%s${c_reset}\\n" "${line:0:${message_line_len}}" "${line:${message_line_len}:${#line}}"
-    done < "$commit_msg"
-    printf "${c_error}%s${c_reset}\\n\\n" "========================================================================"
+    done < <(tail -n +2 <"$commit_msg")
+    printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
     success=false
 fi
 
