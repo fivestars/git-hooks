@@ -37,11 +37,20 @@ GITHOOKS=(
 )
 
 
+# Bash
+#############################################
+# Ensure that the user has a modern version of the bash shell (silly mac users)
+case "${BASH_VERSION}" in
+    4.*) ;;
+    *)  printf >&2 "${c_error}%s${c_reset}\\n" "Upgrade your bash to version 4.*"
+        exit 1
+        ;;
+esac
+
 # GETOPT
 #############################################
 # We depend on GNU getopt for option parsing, but we don't expect
 # OSX users to install it over their built-in getopt command.
-
 set +e
 getopt -T &>/dev/null
 if [[ $? -eq 4 ]]; then
@@ -51,13 +60,13 @@ elif brew --prefix gnu-getopt &>/dev/null; then
 elif command -v port &>/dev/null; then
     getopt=/opt/local/bin/getopt
 else
-    echo "Could not find GNU getopt. Exiting." >&2
+    printf >&2 "${c_error}%s${c_reset}\\n" "Install GNU getopt (see README)"
     exit 1
 fi
 
 # Final check because 'brew --prefix' can return a path that points to nothing.
 if ! command -v $getopt &>/dev/null; then
-    echo "Could not find GNU getopt. Exiting." >&2
+    printf >&2 "${c_error}%s${c_reset}\\n" "Could not find GNU getopt"
     exit 1
 fi
 set -e
