@@ -1134,7 +1134,7 @@ fi
 # Out-of-date check
 #############################################
 last_check=$(git config --global git-hooks.last-check 2>/dev/null) || last_check=0
-if (( "$(date -d "last week" "+%s")" > last_check )); then
+if (( "$(date -v "-7d" "+%s" 2>/dev/null || date -d "last week" "+%s")" > last_check )); then
     (
         cd "$(dirname "$BASH_SOURCE")";
         git fetch &>/dev/null;
