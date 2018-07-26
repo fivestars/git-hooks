@@ -919,7 +919,6 @@ function git_hooks_run {
 	    scripts. You can force the hook or script to run by specifying the
 	    --force flag.
 	HELP
-
     local hook name= path
 
     eval set -- "$($getopt -o f --long force -- $@)"
@@ -957,8 +956,18 @@ function git_hooks_run {
     # locate the hook or script path
     if [[ -z $name ]];then
         path=$GITHOOKSDIR/$hook
-    elif [[ -e $HOOKSDIR/$name ]]; then
+    elif [[ -f $HOOKSDIR/$name ]]; then
         path=$HOOKSDIR/$name
+        if included_hook=$(git config -f "$path" git-hooks.included 2>/dev/null); then
+            path="$BASH_SOURCE_DIR/included/$included_hook"
+            if [[ ! -f "$path" ]]; then
+                echo "Referenced hook does not exist: $path"
+                return 1
+            elif [[ ! -x "$path" ]]; then
+                echo "Referenced hook is not executable: $path"
+                return 1
+            fi
+        fi
     else
         echo "Could not find hook or custom script" >&2
         return 1
