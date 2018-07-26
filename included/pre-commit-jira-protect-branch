@@ -21,6 +21,6 @@ if is_protected_branch "$branch"; then
     read -r response
     case $response in
         yes|y)  ;;
-        *)      move_to_branch "$(jira_get_new_branch_name)" ;;
+        *)      move_to_branch "$(jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)")" ;;
     esac
 fi
