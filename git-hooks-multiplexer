@@ -157,7 +157,8 @@ if [[ -z $hooks ]] && [[ -z $missing ]] && [[ -z $nonexecutable ]]; then
 fi
 
 function is-parallel {
-    local jobs=$(git config hooks.$HOOK.parallel)
+    local jobs
+    jobs=$(git config "hooks.$HOOK.parallel")
     [[ -n $jobs && ($jobs == max || $jobs -gt 1) ]]
 }
 export -f is-parallel
