@@ -10,6 +10,7 @@ while [[ -h "$bash_source" ]]; do
   [[ "$bash_source" != /* ]] && bash_source="$bash_source_dir/$bash_source"
 done
 bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
+bash_source="${bash_source_dir}/${bash_source_dir##*/}"
 
 # shellcheck disable=1090
 . "${bash_source_dir}/included/lib/colors.sh" "${bash_source_dir}/included/lib"
@@ -1074,9 +1075,9 @@ function git_hooks_include {
 #############################################
 
 # Populated in _verify_dirs
-git_dir="$(git rev-parse --git-dir 2>/dev/null)" ||:
-repo_dir="$(git rev-parse --show-toplevel 2>/dev/null)" ||:
-repo_is_bare="$(git rev-parse --is-bare-repository 2>/dev/null)" ||:
+git_dir="$(git rev-parse --git-dir 2>/dev/null)" || git_dir=""
+repo_dir="$(git rev-parse --show-toplevel 2>/dev/null)" || repo_dir=""
+repo_is_bare="$(git rev-parse --is-bare-repository 2>/dev/null)" || repo_is_bare=false
 if "$repo_is_bare"; then
     top_dir="$git_dir"
     repo_git_hooks_dir="$(git config core.hooksPath || echo "${git_dir}/hooks")"
