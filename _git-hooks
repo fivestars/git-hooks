@@ -58,8 +58,8 @@ _git-hooks () {
 
       commands=(
         check-support:'view difference between the git hooks supported by git and git-hooks'
-        install-alias:'install the "git hooks" alias'
-        uninstall-alias:'remove the "git hooks" alias'
+        install-command:'install the "git hooks" command'
+        uninstall-command:'remove the "git hooks" command'
         install-template:'install multiplexer hooks for all future repositories'
         uninstall-template:'stop installing multiplexer hooks for all future repositories'
         config:'display all the config settings managed by git-hooks'
@@ -103,14 +103,16 @@ _git-hooks () {
             "(:)--no-alias[do not install \"git hooks\" into your repository's config]" \
             && ret=0
           ;;
-        (install-alias)
+        (install-command)
           _arguments -S -s \
+            '(:)--local[add alias to repository config]' \
             '(:)--global[add alias to git global config]' \
             '(:)--core[add git-hooks command to git exec-path]' \
             && ret=0
           ;;
-        (uninstall-alias)
+        (uninstall-command)
           _arguments -S -s \
+            '(:)--local[remove alias from repository config]' \
             '(:)--global[remove alias from git global config]' \
             '(:)--core[remove git-hooks command from git exec-path]' \
             && ret=0

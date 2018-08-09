@@ -7,10 +7,10 @@ bash_source="${BASH_SOURCE[0]}"
 while [[ -h "$bash_source" ]]; do
   bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
   bash_source="$(readlink "$bash_source")"
-  [[ "$bash_source" != /* ]] && bash_source="$bash_source_dir/$bash_source"
+  [[ "$bash_source" != /* ]] && bash_source="${bash_source_dir}/${bash_source}"
 done
 bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
-bash_source="${bash_source_dir}/${bash_source_dir##*/}"
+bash_source="${bash_source_dir}/${bash_source##*/}"
 
 # shellcheck disable=1090
 . "${bash_source_dir}/included/lib/colors.sh" "${bash_source_dir}/included/lib"
@@ -174,7 +174,7 @@ $(md_no_indent_or_hash "
     # way of ensuring all of your future cloned and created repositories automatically
     # get $(md_inline_quotes "git hooks") support right out of the box.
 ")
-$(md_block_monospace '    path/to/git-hooks/git-hooks install-alias --global')
+$(md_block_monospace '    path/to/git-hooks/git-hooks install-command --global')
 
 $(md '#### ')$(md_no_indent_or_hash "    # Install the multiplexers and the 'git hooks' alias in a repository")
 $(md_block_monospace '
@@ -205,8 +205,8 @@ $(md '##') Usage:
     or: git hooks $(git_hooks__extract_desc run)
     or: git hooks $(git_hooks__extract_desc install)
     or: git hooks $(git_hooks__extract_desc uninstall)
-    or: git hooks $(git_hooks__extract_desc install-alias)
-    or: git hooks $(git_hooks__extract_desc uninstall-alias)
+    or: git hooks $(git_hooks__extract_desc install-command)
+    or: git hooks $(git_hooks__extract_desc uninstall-command)
     or: git hooks $(git_hooks__extract_desc install-template)
     or: git hooks $(git_hooks__extract_desc uninstall-template)
     or: git hooks $(git_hooks__extract_desc include)
@@ -356,7 +356,7 @@ function git_hooks__extract_help {
     while read -r cmd; do
         printf "\\n    %s\\n" "$(git_hooks__extract_desc "$cmd")"
         git_hooks__extract_doc -h "git_hooks_${cmd//-/_}" | sed 's/^/    /g'
-    done < <(grep "$(git_hooks__extract_desc [-a-zA-Z0-9]\+)$" "$bash_source" | sed 's/.* \(.*\))/\1/g')
+    done < <(grep "\$(git_hooks__extract_desc [-a-z]\\+)\$" "${bash_source}" | sed 's/.* \(.*\))/\1/g')
 }
 
 
@@ -436,14 +436,13 @@ function git_hooks_install {
 
 	    If --no-alias is specified, the local 'git hooks' alias will
 	    not be created.
-
 	HELP
 
     local item preserve=true alias=true
 
-    eval set -- "$($getopt --long no-preserve,no-alias -- "$@")"
-    while [[ $1 != -- ]]; do
-        case $1 in
+    eval set -- "$($getopt -o "" --long no-preserve,no-alias -- "$@")"
+    while [[ ${1:-} != -- ]]; do
+        case ${1:-} in
             --no-preserve) preserve=false; shift;;
             --no-alias) alias=false; shift;;
             *) echo "Unrecognized option: $1"; return 1;;
@@ -453,8 +452,7 @@ function git_hooks_install {
 
     # Create hooks alias if not already present
     if $alias && ! git hooks &>/dev/null; then
-        # shellcheck disable=SC2119
-        git_hooks_install_alias
+        git_hooks_install_command --local
     fi
 
     # Create the .git/hooks and .githooks directories
@@ -462,7 +460,7 @@ function git_hooks_install {
 
     # Move existing hooks to .githooks dir
     # shellcheck disable=SC2015
-    "$preserve" && echo "Moving existing hooks to $githooks_dir..." ||:
+    "$preserve" && echo "Moving existing hooks to $githooks_dir..."
     shopt -s nullglob
     for item in "${repo_git_hooks_dir}/"*; do
         if ! [[ -h "$item" && "$(readlink "$item")" =~ git-hooks-multiplexer ]]; then
@@ -478,7 +476,7 @@ function git_hooks_install {
     echo "Installing multiplexers..."
     for hook in "${git_hook_names[@]}"; do
         item="${repo_git_hooks_dir}/${hook}"
-        if ! [[ -h "$item" && "$(readlink "$item")" =~ git-hooks-multiplexer ]]; then
+        if ! [[ -h "$item" && "$(readlink "$item")" == "${bash_source_dir}/git-hooks-multiplexer" ]]; then
             ln -isv "${bash_source_dir}/git-hooks-multiplexer" "${repo_git_hooks_dir}/${hook}"
         fi
     done
@@ -495,7 +493,7 @@ function git_hooks_uninstall {
 
     # Remove hooks alias if present in repo config
     # shellcheck disable=SC2119
-    git_hooks_uninstall_alias
+    git_hooks_uninstall_command --local
 
     echo "Removing multiplexers..."
     for hook in "${repo_git_hooks_dir}/"*; do
@@ -508,39 +506,42 @@ function git_hooks_uninstall {
 
 
 # shellcheck disable=SC2120
-function git_hooks_install_alias {
+function git_hooks_install_command {
     : <<-ARGS
-	    [--global] [--core]
+	    [--local] [--global] [--core]
 	ARGS
     : <<-HELP
 	    Installs 'git-hooks' alias into any of three locations.
-	        --global: Add it to the global git aliases
+	        --local: add it to the current repository's git aliases
+	        --global: add it to the global git aliases
 	        --core: Links this file into this machine's git core
 	                directory. Any 'hooks' aliases will no longer be
 	                effective.
 
-	    If neither --global nor --core are specified, the alias will be
-	    installed into the repo's local git config.
+	    If neither --local nor --core are specified, the alias will be
+	    installed into the global git config.
 	HELP
 
     local token repo=false global=false core=false choice
 
     for token in "$@"; do
         case $token in
+            --local) shift; repo=true;;
             --global) shift; global=true;;
             --core) shift; core=true;;
             *) echo "Unknown option: $token"; return 1;;
         esac
     done
-    $global || $core || repo=true
+    $repo || $core || global=true
 
     if $repo; then
-        git config alias.hooks "!$bash_source" && \
+        git_hooks__require_git_dir
+        git config alias.hooks "!${bash_source}" && \
             echo "Added \"hooks\" to your repository's aliases."
     fi
 
     if $global; then
-        git config --global alias.hooks "!$bash_source" && \
+        git config --global alias.hooks "!${bash_source}" && \
             echo "Added \"hooks\" to your global aliases."
     fi
 
@@ -549,7 +550,7 @@ function git_hooks_install_alias {
         echo -n "Continue? (y/N) "
         read -r choice
         case $choice in
-            y|Y) ln -isv "$bash_source" "$(git --exec-path)" || \
+            y|Y) ln -isv "${bash_source}" "$(git --exec-path)" || \
                 ( \
                     echo "Could not link to $(git --exec-path)/git-hooks" && \
                     return 1 \
@@ -562,30 +563,33 @@ function git_hooks_install_alias {
 
 
 # shellcheck disable=SC2120
-function git_hooks_uninstall_alias {
+function git_hooks_uninstall_command {
     : <<-ARGS
-	    [--global] [--core]
+	    [--local] [--global] [--core]
 	ARGS
     : <<-HELP
 	    Clears the 'git-hooks' alias from the specified location.
+	        --local: Remove it from the repository's aliases
 	        --global: Remove it from the global aliases
 	        --core: Delete the git-hooks link from this machine's git
 	                core directory.
 
-	    If neither --global nor --core are specified, the alias will be
-	    removed from the repo's local git config.
+	    If neither --local nor --core are specified, the alias will be
+	    removed from the global git config.
 	HELP
     local token repo=false global=false core=false choice
     for token in "$@"; do
         case $token in
+            --local) shift; repo=true;;
             --global) shift; global=true;;
             --core) shift; core=true;;
             *) echo "Unknown option: $token"; return 1;;
         esac
     done
-    $global || $core || repo=true
+    $repo || $core || global=true
 
     if $repo; then
+        git_hooks__require_git_dir
         git config --unset alias.hooks && \
             echo "Removed from your repository's aliases."
     fi
@@ -788,7 +792,7 @@ function git_hooks_list {
 
         if [[ -n "$hooks" ]]; then
             # shellcheck disable=SC2015
-            "$disabled" && echo -en "${c_error:?}" ||:
+            "$disabled" && echo -en "${c_error:?}"
             "$unicode" && echo -en "${hook_name}─┐${c_reset}" || echo -en "${hook_name}-|${c_reset:?}"
             "$disabled" && echo " (disabled)" || echo
             echo -en "${hooks:2}" | xargs -0 -L1 printf " %${#hook_name}s%s\\n" ""
@@ -1097,7 +1101,7 @@ fi
 last_check="$(git config --global git-hooks.last-check 2>/dev/null)" || last_check=0
 if (( "$(date -v "-7d" "+%s" 2>/dev/null || date -d "last week" "+%s")" > last_check )); then
     (
-        cd "$(dirname "$bash_source")";
+        cd "$bash_source_dir";
         git fetch &>/dev/null;
         behind="$(git rev-list HEAD..origin/master | wc -l)";
         if ((behind)); then
@@ -1134,7 +1138,7 @@ case "$git_hooks_command" in
         fi
         ;;
 
-    check-support|install-alias|uninstall-alias|install-template|uninstall-template|config|help)
+    check-support|install-command|uninstall-command|install-template|uninstall-template|config|help)
         ;;
 
     *)  echo "git: '$git_hooks_command' is not a git-hooks command. See 'git hooks help'." >&2

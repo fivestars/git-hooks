@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+: <<DESC
+Update README.md with any changes to the auto-docs
+DESC
+
+./git-hooks help --markdown >README.md
+git add README.md
