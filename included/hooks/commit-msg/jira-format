@@ -7,7 +7,7 @@ DESC
 
 # Get our useful functions (be sure to provide lib path as source argument)
 # shellcheck source=included/lib/jira.sh
-. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+. "$(dirname "${BASH_SOURCE[@]}")/../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../lib"
 
 commit_msg="$1"
 
