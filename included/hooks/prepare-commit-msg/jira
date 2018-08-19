@@ -14,7 +14,7 @@ HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
 # shellcheck source=included/lib/jira.sh
-. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
 if [[ -n ${2:-} ]]; then
   # Don't apply this process if this is not a normal commit

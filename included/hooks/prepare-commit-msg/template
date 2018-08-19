@@ -14,10 +14,10 @@ will reload the failed message on the next commit at the current HEAD.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
-# shellcheck source=included/lib/jira.sh
-. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+# shellcheck source=included/lib/core.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
-# This filename format is mirrored in commit-msg-format and commit-msg-jira-format,
+# This filename format is mirrored in commit-msg/format and commit-msg/jira-format,
 # so be sure to update that if you change these.
 tmp_msg_prefix="git-commit-msg-$(basename $(git rev-parse --show-toplevel))"
 tmp_msg_filename="/tmp/${tmp_msg_prefix}-$(git rev-parse --short HEAD 2>/dev/null ||:)"
