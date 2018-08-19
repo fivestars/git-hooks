@@ -16,7 +16,8 @@ will be otherwise ignored).
 HELP
 
 # Get our useful functions
-. "$(dirname "${BASH_SOURCE[@]}")/lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/lib"
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
 branch=$(git rev-parse --abbrev-ref HEAD)
 if (( $# )); then
