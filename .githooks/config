@@ -1,0 +1,6 @@
+[collection]
+	names = git-hooks
+[collection "git-hooks"]
+	type = git
+	location = https://github.com/fivestars/git-hooks.git
+	subpath = included/hooks

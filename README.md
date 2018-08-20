@@ -31,7 +31,7 @@ you greater flexibility regarding which pieces to run and when.
 
 ```
 
-#### Install `git hooks` as a git global alias (optional)
+#### Install `git hooks` as a git global alias (optional, but recommended)
 
 This allows you to do `git hooks install` in new repositories rather than
 locating the command via its path. Regardless, a local alias will be created
@@ -80,7 +80,8 @@ or future repositonies.
     or: git hooks uninstall-command [--local] [--global] [--core]
     or: git hooks install-template 
     or: git hooks uninstall-template 
-    or: git hooks include [<custom script name>...]
+    or: git hooks add-collection <collection name> <collection type> <clone url> [<subpath to hooks>]
+    or: git hooks include <collection name> <git hook> <hook script> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
@@ -152,8 +153,14 @@ or future repositonies.
 ## Operations:
 
     list [<git hook>...]
-        Lists the currently available custom scripts for each standard git
-        hook. If any are disabled, it is noted in the output.
+        Clears the 'git-hooks' alias from the specified location.
+            --local: Remove it from the repository's aliases
+            --global: Remove it from the global aliases
+            --core: Delete the git-hooks link from this machine's git
+                    core directory.
+    
+        If neither --local nor --core are specified, the alias will be
+        removed from the global git config.
 
     enable [-q|--quiet] <git hook>... <custom script name>...
         Enables a script (or scripts) to be run during git hook
@@ -232,12 +239,26 @@ or future repositonies.
     uninstall-template 
         Undoes the effects of 'install-template'.
 
-    include [<custom script name>...]
-        Copies a script included with the git-hooks command to your
-        repository's .githooks directory.
+    add-collection <collection name> <collection type> <clone url> [<subpath to hooks>]
+        Configures this repository to be able to reference git hooks hosted
+        in a remote locatior (currently only supports git repositories).
     
-        If run with no arguments, a list of available scripts and their
-        purposes will be displayed.
+        <collection name>:  The internal name for the collection. Must be unique
+                            within this repository.
+    
+        <collection type>:  Must be "git".
+    
+        <clone url>:        The collection's remote url.
+    
+        <subpath to hooks>: The collection-relative path to the hook directories.
+
+    include <collection name> <git hook> <hook script> [<new name>]
+        Link an existing script from a collection into this repository.
+        If <new name> is provided, that name will be used instead of <hook script>
+        for the reference file installed into the repository. This is useful when one
+        wishes to specify a strict order to in which to run multiple scripts for
+        <git hook>. Just provide a numeric prefix on the <new name> to indicate
+        the script's place in the running order.
 
     check-support 
         Checks for differences in the list of hooks supported by

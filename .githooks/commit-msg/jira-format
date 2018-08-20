@@ -1,0 +1,3 @@
+[git-hooks]
+	collection = git-hooks
+	hook = commit-msg/jira-format

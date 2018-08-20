@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -eu -o pipefail
-
-if command -v shellcheck &>/dev/null; then
-    shellcheck git-hooks
-fi

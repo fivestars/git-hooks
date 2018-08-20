@@ -21,7 +21,7 @@ function jira_is_valid_branch_name () {
 function jira_get_ticket_from_branch_name () {
     local branch="$1"
 
-    jira_is_valid_branch_name "$branch" && sed "s/^[^A-Z]*\\([A-Z]\\+-[0-9]\\+\\).*$/\\1/" <<<"$branch"
+    jira_is_valid_branch_name "$branch" && sed -E "s/^[^A-Z]*([A-Z]+-[0-9]+).*$/\\1/" <<<"$branch"
 }
 
 function jira_ensure_conforming_branch_name () {
@@ -133,7 +133,7 @@ function jira_get_suffix () {
     printf >&2 "${c_prompt}%s:${c_reset} " "Provide a helpful suffix (optional)"
 
     read -r response
-    if grep -q '^$\|^[a-z0-9]\+\(-[a-z0-9]\+\)*$' <<<"$response"; then
+    if grep -q -E '^$|^[a-z0-9]+(-[a-z0-9]+)*$' <<<"$response"; then
         echo "${response:+"-$response"}"
     else
         printf >&2 "${c_error}%s${c_reset}\\n" "Must use lowercase, alpha-numeric and hyphens(inclusively) only"
@@ -165,7 +165,7 @@ function jira_ensure_project () {
                 continue
             fi
 
-            if ! grep -q "^$(xargs <<<"$projects" | sed 's/ /\$\\|\^/g')$" <<<"$response"; then
+            if ! grep -q -E "^$(xargs <<<"$projects" | sed 's/ /\$|\^/g')$" <<<"$response"; then
                 printf >&2 "${c_error}%s${c_reset}\\n" "Not a valid project key"
                 response=
                 continue

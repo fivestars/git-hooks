@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Check for valid bash script syntax
+DESC
+
+if command -v shellcheck &>/dev/null; then
+    shellcheck git-hooks git-hooks-multiplexer
+fi
