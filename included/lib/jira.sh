@@ -232,7 +232,7 @@ function jira_ensure_access () {
             printf "${c_good}%s${c_reset}\\n\\n" "Jira configuration complete"
         fi
     else
-        printf >&2 "\\n${b_error}%s${c_reset}\\n" "One or more of the Jira configuration values were incorrect"
+        printf >&2 "\\n${c_error}%s${c_reset}\\n" "One or more of the Jira configuration values were incorrect"
         jira_ensure_access true
     fi
 }

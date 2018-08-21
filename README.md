@@ -80,7 +80,7 @@ or future repositonies.
     or: git hooks uninstall-command [--local] [--global] [--core]
     or: git hooks install-template 
     or: git hooks uninstall-template 
-    or: git hooks add-collection <collection name> <collection type> <clone url> [<subpath to hooks>]
+    or: git hooks add-collection <collection name> <clone url> [<subpath to hooks>]
     or: git hooks include <collection name> <git hook> <hook script> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
@@ -239,14 +239,12 @@ or future repositonies.
     uninstall-template 
         Undoes the effects of 'install-template'.
 
-    add-collection <collection name> <collection type> <clone url> [<subpath to hooks>]
+    add-collection <collection name> <clone url> [<subpath to hooks>]
         Configures this repository to be able to reference git hooks hosted
         in a remote locatior (currently only supports git repositories).
     
         <collection name>:  The internal name for the collection. Must be unique
                             within this repository.
-    
-        <collection type>:  Must be "git".
     
         <clone url>:        The collection's remote url.
     
