@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+# Get our installed location
+unset CDPATH
+bash_source="${BASH_SOURCE[0]}"
+while [[ -h "$bash_source" ]]; do
+    bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
+    bash_source="$(readlink "$bash_source")"
+    [[ "$bash_source" != /* ]] && bash_source="${bash_source_dir}/${bash_source}"
+done
+bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
+bash_source="${bash_source_dir}/${bash_source##*/}"
+
+# If we're not being used as a .collections repo (and hence have been installed as the tool)
+# and the expected symlink is not found, go ahead and install it.
+if [[ "$bash_source_dir" != *".collections"* && ! -h /usr/local/bin/git-hooks ]]; then
+    git_hooks_dir="$(cd -P "${bash_source_dir}/../.." >/dev/null && pwd)"
+    ln -isv "${git_hooks_dir}/git-hooks" /usr/local/bin
+fi
