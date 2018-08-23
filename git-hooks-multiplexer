@@ -23,6 +23,12 @@ bash_source="${bash_source_dir}/${bash_source##*/}"
 # shellcheck disable=1090
 . "${bash_source_dir}/git-hooks" "${bash_source_dir}"
 
+export c_action
+export c_value
+export c_error
+export c_missing
+export c_reset
+
 # This script will run all configured hooks found in <repository>/.githooks/$HOOK.
 #
 # It will fail if any of those return non-zero exit codes. You can disable
@@ -62,7 +68,7 @@ cat <<"EOF" >$CAPTURE
 
 function prevent-parallel {
     if is-parallel; then
-        echo "${0##*/} cannot be run as a parallel job: git config hooks.$HOOK.parallel is set"
+        printf "${c_value} ${c_error}%s${c_reset}\\n" "${0##*/}" "cannot be run as a parallel job: git config hooks.$HOOK.parallel is set"
         exit ${1:-1}
     fi
 }
@@ -71,20 +77,20 @@ function capture_on_exit {
     # Store the exit code
     local RESULT=$?
     if [[ $RESULT -ne 0 ]]; then
-        echo "[failed $hook (exit code $RESULT)]"
+        printf "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "[failed" "$hook_name" "(exit code ${RESULT})]"
     fi
     return $RESULT
 }
 
 # Create the temporary output buffer
-read -r capture_outfile infile hook_name hook_path <<<$1
+read -r capture_outfile infile hook_name hook_path <<<"$1"
 shift
 
 # Redirect $infile to stdin if our hook expects inbound input
-[[ $HOOK == post-rewrite ]] && exec 10<&0 0<$infile || exec 10>&0 0</dev/tty
+[[ "$HOOK" == post-rewrite ]] && exec 10<&0 0<$infile || exec 10>&0 0</dev/tty
 
 # Report which hook is running
-echo "[running $HOOK-$hook_name]"
+printf "${c_action}%s${c_reset}\\n" "[running $HOOK-$hook_name]"
 
 # Store stdout and stderr, then redirect them to the buffer
 is-parallel && exec 11>&1 12>&2 &>$capture_outfile
@@ -94,9 +100,9 @@ export -f prevent-parallel
 
 # Display input if requested
 if git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
-    echo "[$# args to $hook_name ${*:1}]"
-    echo "[input to $hook_name]"
-    cat $infile # | sed "s|^|$(basename $hook_name)(in)  \||g"
+    echo "[$# args to ${hook_name} ${*:1}]"
+    echo "[input to ${hook_name}]"
+    cat "$infile"  # | sed "s|^|$(basename "${hook_name}")(in)  \||g"
 fi
 
 # Set our exit trap to display any errors and do our clean up
@@ -104,7 +110,7 @@ trap "capture_on_exit" EXIT SIGHUP SIGINT SIGTERM
 
 # Call the wrapped script
 if is-parallel || git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
-    echo "[output for $hook_name]"
+    echo "[output for ${hook_name}]"
 fi
 "$hook_path" "$@" 2>&1 # | sed "s|^|${hook_name}(out) \||g"
 exit ${PIPESTATUS[0]}
@@ -126,22 +132,22 @@ trap "rm -f ${tmpfile}*" EXIT SIGHUP SIGINT SIGTERM
 while read -r _ hook_name hook hook_path; do
     if { ! $GITHOOKS_RUN; } && { git config --get-regexp "hooks\\.$HOOK\\.enabled" false &>/dev/null \
             || git config --get-regexp "hooks\\.${hook_name}-${hook}\\.enabled" false &>/dev/null; }; then
-        disabled="${disabled:-}${hook}\\n"
+        disabled="${disabled:-}[${hook}]\\n"
     elif [[ -f "$hook_path" ]]; then
         if [[ -x "$hook_path" ]]; then
             hooks="${hooks:-}$tmpfile.$((count++)) $tmpfile.stdin $hook ${hook_path}\\n"
         else
-            nonexecutable="${nonexecutable:-}$hook\\n"
+            nonexecutable="${nonexecutable:-}[${hook}]\\n"
         fi
     else
-        missing="${missing:-}$hook\\n"
+        missing="${missing:-}[${hook}]\\n"
     fi
 done < <(git_hooks__get_hooks "$HOOK")
 
 # Display disabled hooks
 if [[ -n "$disabled" ]]; then
-    echo -e "[skipping disabled hooks]"
-    echo -en "$disabled" | xargs -L1 | sed "s/^\\(.*\\)/    [\\1]/"
+    printf "${c_action}%s${c_reset}\\n" "[skipping disabled hooks]"
+    echo -en "${c_missing}${disabled}${c_reset}" | xargs -L1 | sed "s/^\\(.*\\)/    \\1/"
 fi
 
 # Might be done already
@@ -193,15 +199,15 @@ if [[ -n "$missing" || -n "$nonexecutable" ]]; then
     # Fail the hook if we couldn't find one of the hook scripts (even though we ran
     # the ones we found and encountered no errors)
     if [[ -n "$missing" ]]; then
-        echo -e "[failed $HOOK checks due to missing hooks]"
-        echo -en "$missing" | xargs -L1 | sed "s/^\\(.*\\)/    [\\1]/"
+        printf "${c_action}%s${c_reset}\\n" "[failed $HOOK checks due to missing hooks]"
+        echo -en "${c_missing}${missing}${c_reset}" | xargs -L1 | sed "s/^\\(.*\\)/    \\1/"
     fi
 
     # Fail the hook if we couldn't execute one of the hook scripts (even though we
     # ran the ones we found and encountered no errors)
     if [[ -n "$nonexecutable" ]]; then
-        echo -e "[failed $HOOK checks due to non-executable hooks]"
-        echo -en "$nonexecutable" | xargs -L1 | sed "s/^\\(.*\\)/    [\\1]/"
+        printf "${c_action}%s${c_reset}\\n" "[failed $HOOK checks due to non-executable hooks]"
+        echo -en "${c_missing}${nonexecutable}${c_reset}" | xargs -L1 | sed "s/^\\(.*\\)/    \\1/"
     fi
 
     exit 1

@@ -18,10 +18,16 @@ bash_source="${bash_source_dir}/${bash_source##*/}"
 
 # shellcheck disable=2091
 if "$(git config --bool git-hooks.color)" &>/dev/null; then
+    c_action="${c_action:-${cyan}}"
+    c_value="${c_value:-${yellow}}"
     c_error="${c_error:-${red}}"
+    c_warning="${c_warning:-${b_red}}"
     c_missing="${c_missing:-${b_black}}"
 else
+    c_action=""
+    c_value=""
     c_error=""
+    c_warning=""
     c_missing=""
     c_reset=""
 fi
