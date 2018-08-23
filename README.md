@@ -31,26 +31,20 @@ you greater flexibility regarding which pieces to run and when.
 
 ```
 
-#### Install `git hooks` as a git global alias (optional, but recommended)
+#### Install `git hooks`
 
-This allows you to do `git hooks install` in new repositories rather than
-locating the command via its path. Regardless, a local alias will be created
-in your repository's git config in the next step.
-
-See the `git hooks install-template` instructions below for the recommended
-way of ensuring all of your future cloned and created repositories automatically
-get `git hooks` support right out of the box.
+This will symlink `git-hooks` to `/usr/local/bin`.
+This allows `git` to treat it as a first-class command. In other words, you can invoke its behavior
+via `git hooks ...`.
 ```
-    path/to/git-hooks/git-hooks install-command --global
+    path/to/git-hooks/git-hooks install-command
 ```
 
-#### Install the multiplexers and the 'git hooks' alias in a repository
+#### Install the multiplexers into a repository
 ```
 
     cd <to your repo>
     git hooks install
-    # -- or, if you skipped the global git alias step above ---
-    path/to/git-hooks/git-hooks install
 
 ```
 
@@ -63,8 +57,6 @@ or future repositonies.
 ```
 
     git hooks install-template
-    # -- or, if you skipped the global git alias step above ---
-    path/to/git-hooks/git-hooks install-template
 
 ```
 
@@ -74,10 +66,10 @@ or future repositonies.
     or: git hooks enable [-q|--quiet] <git hook>... <custom script name>...
     or: git hooks disable [-q|--quiet] <git hook>... <custom script name>...
     or: git hooks run [-f|--force] <git hook>|<custom script name>
-    or: git hooks install [--no-preserve] [--no-alias]
+    or: git hooks install [--no-preserve]
     or: git hooks uninstall 
-    or: git hooks install-command [--local] [--global] [--core]
-    or: git hooks uninstall-command [--local] [--global] [--core]
+    or: git hooks install-command 
+    or: git hooks uninstall-command 
     or: git hooks install-template 
     or: git hooks uninstall-template 
     or: git hooks add-collection <collection name> <clone url> [<subpath to hooks>]
@@ -108,11 +100,11 @@ or future repositonies.
         ./config.
 
     ~/.gitconfig
-        If you opt to install the 'git hooks' alias as a global alias, it will
-        be added to this file.
+        Some configs, such as unicode output and color output support will be stored here.
+        Additionally, the periodic update check information is stored here.
 
     ~/.gittemplate/hooks
-    ~/.gittemplate/config
+    ~/.gittemplate/info/exclude
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
@@ -153,14 +145,7 @@ or future repositonies.
 ## Operations:
 
     list [<git hook>...]
-        Clears the 'git-hooks' alias from the specified location.
-            --local: Remove it from the repository's aliases
-            --global: Remove it from the global aliases
-            --core: Delete the git-hooks link from this machine's git
-                    core directory.
-    
-        If neither --local nor --core are specified, the alias will be
-        removed from the global git config.
+        List all hooks for the current repository and their runnable state.
 
     enable [-q|--quiet] <git hook>... <custom script name>...
         Enables a script (or scripts) to be run during git hook
@@ -183,7 +168,7 @@ or future repositonies.
         scripts. You can force the hook or script to run by specifying the
         --force flag.
 
-    install [--no-preserve] [--no-alias]
+    install [--no-preserve]
         Installs the multiplexer hooks into the .git/hooks directory.
         These scripts are the core of the git-hooks functionality.
         They are responsible for running any configured custom scripts
@@ -192,47 +177,26 @@ or future repositonies.
         directory and moves any existing hooks into it. Any scripts
         moved in this process will receive the "-moved" suffix.
     
-        It will also create the git alias 'git hooks' in the local
-        repo's config if the global alias is not already present.
-    
         If --no-preserve is specified, no existing hook scripts in
         .git/hooks will be moved to the .githooks directory with the
         "-moved" suffix.
-    
-        If --no-alias is specified, the local 'git hooks' alias will
-        not be created.
 
     uninstall 
         Removes the multiplexer hooks from the .git/hooks directory and
-        removes the 'hooks' alias from the repo's config, if present.
+        removes the 'git-hooks' symlink from /usr/local/bin, if present.
 
-    install-command [--local] [--global] [--core]
-        Installs 'git-hooks' alias into any of three locations.
-            --local: add it to the current repository's git aliases
-            --global: add it to the global git aliases
-            --core: Links this file into this machine's git core
-                    directory. Any 'hooks' aliases will no longer be
-                    effective.
-    
-        If neither --local nor --core are specified, the alias will be
-        installed into the global git config.
+    install-command 
+        Creates a symlink to 'git-hooks' in /usr/local/bin
 
-    uninstall-command [--local] [--global] [--core]
-        Clears the 'git-hooks' alias from the specified location.
-            --local: Remove it from the repository's aliases
-            --global: Remove it from the global aliases
-            --core: Delete the git-hooks link from this machine's git
-                    core directory.
-    
-        If neither --local nor --core are specified, the alias will be
-        removed from the global git config.
+    uninstall-command 
+        Removes the symlink to 'git-hooks' in /usr/local/bin, if present.
 
     install-template 
         Installs the multiplexer scripts into ~/.gittemplate/hooks (or
         into the location defined by the init.templatedir config value).
         This will cause any subsequently cloned or created repositories to
         automatically populate their .git/hooks directories with the
-        multiplexer script and provide them with the 'git hooks' alias.
+        multiplexer script.
     
         To update previously cloned repositories, just run 'git init' again.
 

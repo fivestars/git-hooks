@@ -19,7 +19,6 @@ while [[ -h "$bash_source" ]]; do
 done
 bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
 bash_source="${bash_source_dir}/${bash_source##*/}"
-set +x
 
 # shellcheck disable=1090
 . "${bash_source_dir}/git-hooks" "${bash_source_dir}"

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+invocation="${_:-}"
 set -eu -o pipefail
 
 # Borrowed from https://stackoverflow.com/questions/59895/getting-the-source-directory-of-a-bash-script-from-within
@@ -87,6 +88,14 @@ function git_hooks__ensure_gnu_getopt {
     set -e
 }
 
+function git_hooks__ensure_collection {
+    local collections_path="${githooks_dir}/.collections"
+    local c_name="$1"
+
+    [[ -d "${collections_path}/${c_name}" ]]
+    (pushd "${collections_path}/${c_name}" &>/dev/null; git rev-parse --is-inside-work-tree &>/dev/null)
+}
+
 # Utility functions for README.md
 function md {
     if $USE_MARKDOWN; then
@@ -168,24 +177,18 @@ $(md_block_monospace '
     fi
 ')
 
-$(md '#### ')$(md_no_indent_or_hash "    # Install $(md_inline_quotes 'git hooks') as a git global alias (optional, but recommended)")
+$(md '#### ')$(md_no_indent_or_hash "    # Install $(md_inline_quotes 'git hooks')")
 $(md_no_indent_or_hash "
-    # This allows you to do $(md_inline_quotes 'git hooks install') in new repositories rather than
-    # locating the command via its path. Regardless, a local alias will be created
-    # in your repository's git config in the next step.
-
-    # See the $(md_inline_quotes "git hooks install-template") instructions below for the recommended
-    # way of ensuring all of your future cloned and created repositories automatically
-    # get $(md_inline_quotes "git hooks") support right out of the box.
+    # This will symlink $(md_inline_monospace git-hooks) to $(md_inline_monospace /usr/local/bin).
+    # This allows $(md_inline_monospace git) to treat it as a first-class command. In other words, you can invoke its behavior
+    # via $(md_inline_monospace git hooks ...).
 ")
-$(md_block_monospace '    path/to/git-hooks/git-hooks install-command --global')
+$(md_block_monospace '    path/to/git-hooks/git-hooks install-command')
 
-$(md '#### ')$(md_no_indent_or_hash "    # Install the multiplexers and the 'git hooks' alias in a repository")
+$(md '#### ')$(md_no_indent_or_hash "    # Install the multiplexers into a repository")
 $(md_block_monospace '
     cd <to your repo>
     git hooks install
-    # -- or, if you skipped the global git alias step above ---
-    path/to/git-hooks/git-hooks install
 ')
 
 $(md '#### ')$(md_no_indent_or_hash "    # Configure git to automatically install the multiplexers for all new repos (cloned or init'ed)")
@@ -197,8 +200,6 @@ $(md_no_indent_or_hash "
 ")
 $(md_block_monospace '
     git hooks install-template
-    # -- or, if you skipped the global git alias step above ---
-    path/to/git-hooks/git-hooks install-template
 ')
 
 $(md '##') Usage:
@@ -241,11 +242,11 @@ $(md '##') Files:
         ./config.
 
     ~/.gitconfig
-        If you opt to install the 'git hooks' alias as a global alias, it will
-        be added to this file.
+        Some configs, such as unicode output and color output support will be stored here.
+        Additionally, the periodic update check information is stored here.
 
     ~/.gittemplate/hooks
-    ~/.gittemplate/config
+    ~/.gittemplate/info/exclude
         These files will be updated if you choose to install the hooks into your
         repository template by running 'git hooks install-template'.
 
@@ -421,7 +422,7 @@ function git_hooks_help {
 
 function git_hooks_install {
     : <<-ARGS
-	    [--no-preserve] [--no-alias]
+	    [--no-preserve]
 	ARGS
     : <<-HELP
 	    Installs the multiplexer hooks into the .git/hooks directory.
@@ -432,33 +433,21 @@ function git_hooks_install {
 	    directory and moves any existing hooks into it. Any scripts
 	    moved in this process will receive the "-moved" suffix.
 
-	    It will also create the git alias 'git hooks' in the local
-	    repo's config if the global alias is not already present.
-
 	    If --no-preserve is specified, no existing hook scripts in
 	    .git/hooks will be moved to the .githooks directory with the
 	    "-moved" suffix.
-
-	    If --no-alias is specified, the local 'git hooks' alias will
-	    not be created.
 	HELP
 
-    local item preserve=true alias=true
+    local item preserve=true
 
-    eval set -- "$($getopt -o "" --long no-preserve,no-alias -- "$@")"
+    eval set -- "$($getopt -o "" --long no-preserve -- "$@")"
     while [[ ${1:-} != -- ]]; do
         case ${1:-} in
             --no-preserve) preserve=false; shift;;
-            --no-alias) alias=false; shift;;
             *) echo "Unrecognized option: $1"; return 1;;
         esac
     done
     shift
-
-    # Create hooks alias if not already present
-    if $alias && ! git hooks &>/dev/null; then
-        git_hooks_install_command --local
-    fi
 
     # Create the .git/hooks and .githooks directories
     mkdir -p "$repo_git_hooks_dir" "$githooks_dir"
@@ -532,14 +521,12 @@ function git_hooks_add_collection {
     if [[ -n "$c_subpath" ]]; then
         git config -f "$git_hooks_config" "collection.${c_name}.subpath" "$c_subpath"
     fi
-
-    git_hooks_sync_collection "$c_name"
 }
 
 
 
 
-function git_hooks_sync_collection {
+function git_hooks__sync_collection {
     local git_hooks_config="${githooks_dir}/config"
     local collections_path="${githooks_dir}/.collections"
     local c_name="$1" c_type c_location c_subpath
@@ -553,13 +540,13 @@ function git_hooks_sync_collection {
     mkdir -p "$collections_path"
     case "$c_type" in
         git)
-            if [[ ! -d "${collections_path}/${c_name}" ]]; then
+            if [[ -d "${collections_path}/${c_name}" ]]; then
+                pushd "${collections_path}/${c_name}" &>/dev/null
+                git pull &>/dev/null
+                popd &>/dev/null
+            else
                 git clone "$c_location" "${collections_path}/${c_name}"
             fi
-
-            pushd "${collections_path}/${c_name}" &>/dev/null
-            git pull >/dev/null
-            popd &>/dev/null
             ;;
 
         *)
@@ -570,15 +557,12 @@ function git_hooks_sync_collection {
 
 
 
+
 function git_hooks_uninstall {
     : <<-HELP
 	    Removes the multiplexer hooks from the .git/hooks directory and
-	    removes the 'hooks' alias from the repo's config, if present.
+	    removes the 'git-hooks' symlink from /usr/local/bin, if present.
 	HELP
-
-    # Remove hooks alias if present in repo config
-    # shellcheck disable=SC2119
-    git_hooks_uninstall_command --local
 
     echo "Removing multiplexers..."
     for hook in "${repo_git_hooks_dir}/"*; do
@@ -593,55 +577,14 @@ function git_hooks_uninstall {
 # shellcheck disable=SC2120
 function git_hooks_install_command {
     : <<-ARGS
-	    [--local] [--global] [--core]
 	ARGS
     : <<-HELP
-	    Installs 'git-hooks' alias into any of three locations.
-	        --local: add it to the current repository's git aliases
-	        --global: add it to the global git aliases
-	        --core: Links this file into this machine's git core
-	                directory. Any 'hooks' aliases will no longer be
-	                effective.
-
-	    If neither --local nor --core are specified, the alias will be
-	    installed into the global git config.
+	    Creates a symlink to 'git-hooks' in /usr/local/bin
 	HELP
 
-    local token repo=false global=false core=false choice
-
-    for token in "$@"; do
-        case "$token" in
-            --local) shift; repo=true;;
-            --global) shift; global=true;;
-            --core) shift; core=true;;
-            *) echo "Unknown option: $token"; return 1;;
-        esac
-    done
-    $repo || $core || global=true
-
-    if $repo; then
-        git_hooks__require_git_dir
-        git config alias.hooks "!${bash_source}" && \
-            echo "Added \"hooks\" to your repository's aliases."
-    fi
-
-    if $global; then
-        git config --global alias.hooks "!${bash_source}" && \
-            echo "Added \"hooks\" to your global aliases."
-    fi
-
-    if $core; then
-        echo "This will supercede any \"hooks\" aliases on this machine."
-        echo -n "Continue? (y/N) "
-        read -r choice
-        case $choice in
-            y|Y) ln -isv "${bash_source}" "$(git --exec-path)" || \
-                ( \
-                    echo "Could not link to $(git --exec-path)/git-hooks" && \
-                    return 1 \
-                )
-                ;;
-        esac
+    if ! ln -isv "${bash_source}" "/usr/local/bin"; then
+        echo >&2 "Could not link to /usr/local/bin/git-hooks"
+        return 1
     fi
 }
 
@@ -650,50 +593,12 @@ function git_hooks_install_command {
 # shellcheck disable=SC2120
 function git_hooks_uninstall_command {
     : <<-ARGS
-	    [--local] [--global] [--core]
 	ARGS
     : <<-HELP
-	    Clears the 'git-hooks' alias from the specified location.
-	        --local: Remove it from the repository's aliases
-	        --global: Remove it from the global aliases
-	        --core: Delete the git-hooks link from this machine's git
-	                core directory.
-
-	    If neither --local nor --core are specified, the alias will be
-	    removed from the global git config.
+	    Removes the symlink to 'git-hooks' in /usr/local/bin, if present.
 	HELP
-    local token repo=false global=false core=false choice
-    for token in "$@"; do
-        case "$token" in
-            --local) shift; repo=true;;
-            --global) shift; global=true;;
-            --core) shift; core=true;;
-            *) echo "Unknown option: $token"; return 1;;
-        esac
-    done
-    "$repo" || "$core" || global=true
 
-    if "$repo"; then
-        git_hooks__require_git_dir
-        git config --unset alias.hooks && \
-            echo "Removed from your repository's aliases."
-    fi
-
-    if "$global"; then
-        git config --global --unset alias.hooks && \
-            echo "Removed from your global aliases."
-    fi
-
-    if "$core" && [[ -e "$(git --exec-path)/git-hooks" ]]; then
-        echo "This will remove 'git hooks' from this machine."
-        echo -n "Continue? (y/N) "
-        read -r choice
-        case "$choice" in
-            y|Y) rm "$(git --exec-path)/git-hooks" && \
-                echo "Deleted $(git --exec-path)/git-hooks" || \
-                echo "Could not remove from $(git --exec-path)";;
-        esac
-    fi
+    rm -f /usr/local/bin/git-hooks
 }
 
 
@@ -705,7 +610,7 @@ function git_hooks_install_template {
 	    into the location defined by the init.templatedir config value).
 	    This will cause any subsequently cloned or created repositories to
 	    automatically populate their .git/hooks directories with the
-	    multiplexer script and provide them with the 'git hooks' alias.
+	    multiplexer script.
 
 	    To update previously cloned repositories, just run 'git init' again.
 	HELP
@@ -729,18 +634,12 @@ function git_hooks_install_template {
     done
     popd >/dev/null
 
-    echo -e "\\nAdding 'git hooks' alias to ${templatedir}/config..."
-    touch "${templatedir}/config"
-    git config -f "${templatedir}/config" --unset-all alias.hooks ||:
-    git config -f "${templatedir}/config" alias.hooks "!${bash_source}"
-
     mkdir -p "${templatedir}/info"
     echo ".githooks/.collections" >"${templatedir}/info/exclude"
     cat <<-EOF
 
-	    These multiplexer hooks and the 'git hooks' alias will be installed on any new
-	    repos created or cloned on this system  To enable this behavior for already
-	    existing repos, run 'git init' in those repos again.
+	    These multiplexer hooks will be installed on any new repos created or cloned on this system.
+        To enable hooks for already existing repos, run 'git init' in those repos again.
 	EOF
 }
 
@@ -762,11 +661,6 @@ function git_hooks_uninstall_template {
             done
 
             popd >/dev/null
-        fi
-
-        if [[ -f "${templatedir}/config" ]]; then
-            echo -e "\\nRemoving 'git hooks' alias from ${templatedir}/config..."
-            git config -f "${templatedir}/config" --unset-all alias.hooks ||:
         fi
     fi
 }
@@ -821,14 +715,7 @@ function git_hooks_list {
 	    [<git hook>...]
 	ARGS
     : <<-HELP
-	    Clears the 'git-hooks' alias from the specified location.
-	        --local: Remove it from the repository's aliases
-	        --global: Remove it from the global aliases
-	        --core: Delete the git-hooks link from this machine's git
-	                core directory.
-
-	    If neither --local nor --core are specified, the alias will be
-	    removed from the global git config.
+	    List all hooks for the current repository and their runnable state.
 	HELP
 
     local total count disabled unicode hook_name previous_hook_name
@@ -890,27 +777,14 @@ function git_hooks__get_hooks {
         while read -r path; do
             name="${path##*${hook_name}}"
             name="${name:1:${#name}}"
-            path=$(git_hooks__locate_hook_script "$path")
             echo "$total $hook_name $name $path"
         done < <(find "$githooks_dir" -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~")
     done
 }
 
 
-function git_hooks__locate_hook_script {
-    local git_hooks_config="${githooks_dir}/config"
-    local collections_path="${githooks_dir}/.collections"
-    local path="$1" c_name c_subpath
 
-    if c_name="$(git config -f "$path" --get git-hooks.collection 2>/dev/null)"; then
-        git_hooks_sync_collection "$c_name"
 
-        c_subpath="$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath")"
-        echo -n "${collections_path}/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$path" --get git-hooks.hook)"
-    else
-        echo "$path"
-    fi
-}
 
 function git_hooks_enable {
     : <<-ARGS
@@ -1036,9 +910,9 @@ function git_hooks_run {
         path="${repo_git_hooks_dir}/${hook}"
     else
         if [[ -f "${githooks_dir}/${name}" ]]; then
-            path="$(git_hooks__locate_hook_script "${githooks_dir}/${name}")"
+            path="${githooks_dir}/${name}"
         elif [[ -f "${githooks_dir}/${hook}/${name#${hook}-}" ]]; then
-            path="$(git_hooks__locate_hook_script "${githooks_dir}/${hook}/${name#${hook}-}")"
+            path="${githooks_dir}/${hook}/${name#${hook}-}"
         else
             echo >&2 "Could not find hook or custom script"
             return 1
@@ -1172,13 +1046,18 @@ function git_hooks_include {
     c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
     c_subpath=$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath") 2>/dev/null ||:
 
+    git_hooks__sync_collection "$c_name"
+    git_hooks__ensure_collection "$c_name"
+
     src_path="${collections_path}/${c_name}/${c_subpath}/${hook_name}/${hook}"
     if [[ -f "$src_path" ]]; then
         path="${githooks_dir}/${hook_name}/${as:-${hook}}"
         mkdir -p "$(dirname "$path")"
-        touch "$path"
+        printf '#!/usr/bin/env git-hooks\n\n' > "$path"
         git config -f "$path" git-hooks.collection "$c_name"
         git config -f "$path" git-hooks.hook "${hook_name}/${hook}"
+        chmod +x "$path"
+
     else
         echo "Unrecognized script: $src_path"
     fi
@@ -1266,6 +1145,40 @@ function main {
     "git_hooks_${git_hooks_command//-/_}" "$@"
 }
 
+# "#!/usr/bin/env git-hooks" functionality
+#############################################
+function git_hooks__run_referenced_hook {
+    # This function executes a "script" created by the "git hooks include" command
+    local hook_path collection_name collection_subpath
+
+    hook_path="$1"
+    shift
+
+    collection_name="$(git config -f "$hook_path" --get git-hooks.collection)"
+    collection_subpath="$(git config -f "${githooks_dir}/config" --get "collection.${collection_name}.subpath")" ||:
+
+    # Retrieve/update the collection referenced in this config
+    git_hooks__sync_collection "$collection_name"
+    git_hooks__ensure_collection "$collection_name"
+
+    "${githooks_dir}/.collections/${collection_name}/${collection_subpath:+${collection_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
+}
+
+# Determine if this file is being sourced or invoked
 unset BASH_SOURCE 2>/dev/null ||:
 # shellcheck disable=2015
-[[ ".$0" == ".${BASH_SOURCE[0]}" ]] && main "$@" ||:
+if [[ ".$0" == ".${BASH_SOURCE[0]}" ]]; then
+    # If we're here, this file is being run, not sourced
+
+    # Determine if it was run as the interpreter for #!/usr/bin/env git-hook scripts
+    # or just run as a direct call.
+    if [[ -n "${1:-}" && "${invocation}" == "$1" ]]; then
+        # This is the "interpreter" mode. This happens when one of the "include"
+        # configurations is run.
+
+        git_hooks__run_referenced_hook "$@"
+    else
+        main "$@" ||:
+    fi
+fi
+
