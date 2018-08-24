@@ -11,8 +11,8 @@ repository directory. By default, only master is protected. Works best if run
 after pre-commit-jira-protect-branch.
 
 If running this as a standalone script, say through `git hooks run pre-commit-jira-branch-name`,
-one may provide any non-empty command-line parameter to force the branch creation flow (it/they
-will be otherwise ignored).
+one may provide any non-empty command-line parameter to force the branch creation flow (it will be
+otherwise ignored).
 HELP
 
 # Get our useful functions

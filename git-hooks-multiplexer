@@ -15,7 +15,7 @@ bash_source="${BASH_SOURCE[0]}"
 while [[ -h "$bash_source" ]]; do
     bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
     bash_source="$(readlink "$bash_source")"
-    [[ "$bash_source" != /* ]] && bash_source="$bash_source_dir/$bash_source"
+    [[ "$bash_source" != /* ]] && bash_source="${bash_source_dir}/${bash_source}"
 done
 bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
 bash_source="${bash_source_dir}/${bash_source##*/}"
@@ -76,9 +76,13 @@ function prevent-parallel {
 function capture_on_exit {
     # Store the exit code
     local RESULT=$?
+
     if [[ $RESULT -ne 0 ]]; then
         printf "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "[failed" "$hook_name" "(exit code ${RESULT})]"
     fi
+
+    trap - EXIT SIGHUP SIGINT SIGTERM
+
     return $RESULT
 }
 

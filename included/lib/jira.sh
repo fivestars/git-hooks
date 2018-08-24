@@ -149,35 +149,76 @@ function jira_ensure_project () {
     # Return: 0
     # Stdout: The Jira project key
     # Stderr: Instructions on how to provide the values for the .jira file
-    local response projects project_id
+    local response project_key projects
 
-    if ! git config -f .jira project.key; then
-        projects=$(jira_get_projects | jq 'keys[]')
-
-        printf >&2 "${c_prompt}%s${c_reset}\\n%s\\n\\n" "Possible jira projects: " "$(xargs -n 5 <<<"$projects")"
-
-        while [[ -z "${response:-}" ]]; do
-            printf >&2 "${c_prompt}%s${c_reset}" "Enter your Jira project key: "
-
+    project_key=$(git config -f .jira project.key) ||:
+    if [[ -z "$project_key" ]]  ; then
+        jira_select_project
+    else
+        projects="$(git config -f .jira --get-regexp "project\\..*\\..*" | sed -E 's/project\.([A-Z]+).*/\1/')"
+        if (( "$(echo "$projects" | wc -l)" > 1 )); then
+            printf >&2 "${c_prompt}%s ${c_value}%s${c_prompt}%s${c_reset}" "Use current project" "${project_key}" "? ([y]es/[n]o):"
             read -r response
-            if [[ -z "${response:-}" ]]; then
-                printf >&2 "${c_error}%s${c_reset}\\n" "Must provide key"
-                continue
-            fi
+            case $response in
+                yes|y|"")  echo "$project_key" ;;
+                *)      jira_select_project "$projects" || jira_select_project ;;
+            esac
+        else
+            git config -f .jira project.key "$project_key"
+            git add .jira
 
-            if ! grep -q -E "^$(xargs <<<"$projects" | sed 's/ /\$|\^/g')$" <<<"$response"; then
-                printf >&2 "${c_error}%s${c_reset}\\n" "Not a valid project key"
-                response=
-                continue
-            fi
-        done
-
-        git config -f .jira project.key "$response"
-        git config -f .jira project."$response".id "$(jira_get_projects | jira_get_project "$response" | jira_get_project_field id)"
-        git add .jira
-
-        echo "$response"
+            echo "$project_key"
+        fi
     fi
+}
+
+function jira_select_project () {
+    # Prompt the user to select a jira project. First from a list of projects found in .jira.
+    # Then, if not provided there, let them choose from the complete list of projects in Jira.
+    #
+    # Return: 0
+    # Stdout: The Jira project key
+    # Stderr: Instructions on how to provide the values for the .jira file
+    local required projects response
+
+    if [[ -n "$*" ]]; then
+        projects="$*"
+        required=false
+    else
+        projects="$(jira_get_projects | jq 'keys[]')"
+        required=true
+    fi
+
+    printf >&2 "${c_prompt}%s${c_reset}\\n%s\\n\\n" "Possible jira projects: " "$(xargs -n 5 <<<"${projects[@]}")"
+
+    while [[ -z "${response:-}" ]]; do
+        if "$required"; then
+            printf >&2 "${c_prompt}%s${c_reset}" "Enter your Jira project key: "
+        else
+            printf >&2 "${c_prompt}%s${c_reset}" "Enter your Jira project key (leave blank to choose from a larger list): "
+        fi
+
+        read -r response
+        if [[ -z "${response:-}" ]]; then
+            if ! "$required"; then
+                return 1
+            fi
+            printf >&2 "${c_error}%s${c_reset}\\n" "Must provide key"
+            continue
+        fi
+
+        if ! grep -q -E "^$(xargs <<<"${projects[@]}" | sed 's/ /\$|\^/g')$" <<<"$response"; then
+            printf >&2 "${c_error}%s${c_reset}\\n" "Not a valid project key"
+            response=
+            continue
+        fi
+    done
+
+    git config -f .jira project.key "$response"
+    git config -f .jira project."$response".id "$(jira_get_projects | jira_get_project "$response" | jira_get_project_field id)"
+    git add .jira
+
+    echo "$response"
 }
 
 function jira_get_projects () {
