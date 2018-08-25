@@ -544,13 +544,12 @@ function git_hooks_add_collection {
 function git_hooks__sync_collection {
     local git_hooks_config="${githooks_dir}/config"
     local collections_path="${githooks_dir}/.collections"
-    local c_name="$1" c_type c_location c_subpath
+    local c_name="$1" c_type c_location
 
     # Ensure we know about the collection
     git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
     c_type=$(git config -f "$git_hooks_config" --get "collection.${c_name}.type")
     c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
-    c_subpath=$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath") 2>/dev/null ||:
 
     mkdir -p "$collections_path"
     case "$c_type" in
@@ -1057,17 +1056,24 @@ function git_hooks_include {
 	HELP
     local git_hooks_config="${githooks_dir}/config"
     local collections_path="${githooks_dir}/.collections"
-    local c_name="$1" hook_name="$2" hook="$3" as="${4:-}" c_location c_subpath src_path path
+    local c_name="$1" hook_name="$2" hook="$3" as="${4:-}" c_location c_subpath="" c_subpath_tmp src_path path
 
     # Ensure we know about the collection
     git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
     c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
-    c_subpath=$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath") 2>/dev/null ||:
 
     git_hooks__sync_collection "$c_name"
     git_hooks__ensure_collection "$c_name"
 
-    src_path="${collections_path}/${c_name}/${c_subpath}/${hook_name}/${hook}"
+    # Check the collection repo first, then allow overrides from local repo
+    if c_subpath_tmp=$(git config -f "${collections_path}/${c_name}/.git-hooks-collection" --get "collection.subpath") 2>/dev/null; then
+        c_subpath="$c_subpath_tmp"
+    fi
+    if c_subpath_tmp=$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath") 2>/dev/null; then
+        c_subpath="$c_subpath_tmp"
+    fi
+
+    src_path="${collections_path}/${c_name}/${c_subpath:+${c_subpath}/}${hook_name}/${hook}"
     if [[ -f "$src_path" ]]; then
         if [[ ! -x "$src_path" ]]; then
             printf >&2 "${c_error}%s ${c_value}%s${c_reset}\\n" "Hook not executable:" "$src_path"
@@ -1080,6 +1086,8 @@ function git_hooks_include {
         git config -f "$path" git-hooks.collection "$c_name"
         git config -f "$path" git-hooks.hook "${hook_name}/${hook}"
         chmod +x "$path"
+        printf "${c_action}%s ${c_value}%s ${c_action}%s ${c_value}%s${c_reset}\\n" \
+            "Linked" "${path#*\.githooks/}" "to" "${src_path#${collections_path}/}"
     else
         printf >&2 "${c_error}%s ${c_value}%s${c_reset}\\n" "Hook not found:" "$src_path"
     fi
