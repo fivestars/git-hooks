@@ -734,9 +734,14 @@ function git_hooks_list {
 	    List all hooks for the current repository and their runnable state.
 	HELP
 
-    local total count disabled unicode hook_name previous_hook_name
+    local total count disabled unicode hook_name previous_hook_name hooks_list max_len=0 padding pad
 
     unicode="$(git config --bool git-hooks.unicode)" || unicode=true
+
+    hooks_list="$(git_hooks__get_hooks "$@")"
+    while read -r _ hook_name _ _; do
+        max_len=$(( ${#hook_name}>max_len ? ${#hook_name} : max_len ))
+    done <<<"$hooks_list"
 
     while read -r total hook_name hook hook_path; do
         echo -en "${c_reset}"
@@ -748,7 +753,9 @@ function git_hooks_list {
 
             [[ -n "${previous_hook_name:-}" ]] && echo
             "$disabled" && echo -en "${c_error}"
-            "$unicode" && echo -en "${hook_name}─┐${c_reset}" || echo -en "${hook_name}-|${c_reset}"
+            "$unicode" && padding="────────────────────" || padding="--------------------"
+            pad=${padding:0:$(( max_len - ${#hook_name} + 1 ))}
+            "$unicode" && echo -en "${hook_name}${pad}┐${c_reset}" || echo -en "${hook_name}${pad}|${c_reset}"
             "$disabled" && echo " (disabled)" || echo
         fi
 
@@ -761,19 +768,19 @@ function git_hooks_list {
 
         # shellcheck disable=2091
         if git config --get-regexp "hooks\\.${hook_name}-${hook}\\.enabled" false &>/dev/null; then
-            printf " %${#hook_name}s${connector}${c_error}%s${c_reset} (disabled)\\n" "" "${hook}"
+            printf " %${max_len}s${connector}${c_error}%s${c_reset} (disabled)\\n" "" "${hook}"
         elif "$disabled";then
-            printf " %${#hook_name}s${connector}${c_error}%s${c_reset} (disabled by $hook_name)\\n" "" "${hook}"
+            printf " %${max_len}s${connector}${c_error}%s${c_reset} (disabled by $hook_name)\\n" "" "${hook}"
         elif [[ -f "$hook_path" ]]; then
             if [[ -x "$hook_path" ]]; then
-                printf " %${#hook_name}s${connector}%s${c_reset}\\n" "" "${hook}"
+                printf " %${max_len}s${connector}%s${c_reset}\\n" "" "${hook}"
             else
-                printf " %${#hook_name}s${connector}${c_error}%s${c_reset} (not executable)\\n" "" "${hook}"
+                printf " %${max_len}s${connector}${c_error}%s${c_reset} (not executable)\\n" "" "${hook}"
             fi
         else
-            printf " %${#hook_name}s${connector}${c_missing}%s${c_reset} (not found)\\n" "" "${hook}"
+            printf " %${max_len}s${connector}${c_missing}%s${c_reset} (not found)\\n" "" "${hook}"
         fi
-    done < <(git_hooks__get_hooks "$@")
+    done <<<"$hooks_list"
 }
 
 function git_hooks__get_hooks {
