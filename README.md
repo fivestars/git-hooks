@@ -73,40 +73,12 @@ or future repositonies.
     or: git hooks install-template 
     or: git hooks uninstall-template 
     or: git hooks add-collection <collection name> <clone url> [<subpath to hooks>]
-    or: git hooks include <collection name> <git hook> <hook script> [<new name>]
+    or: git hooks include <collection name> <git hook> <hook executable> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
     or: git hooks config 
     or: git hooks help [--markdown]
-
-## Files:
-    .githooks/
-        This is where git-hooks will look for default hook scripts. Place your
-        hook scripts in here rather than .git/hooks. Your hook scripts should
-        be executable and follow the naming convention:
-
-            <standard git hook name>-<custom suffix>[.<file extension>]
-
-        They will be executed in alphabetical order, so if you wish to control
-        the order of execution, take that into account when naming the files.
-
-        Examples: .githooks/pre-commit-00-style.sh
-                  .githooks/pre-commit-01-unittest.py
-
-    .git/config
-        git-hooks config settings will be stored in your repository's config
-        file. In the case of a bare repository, the config file is located at
-        ./config.
-
-    ~/.gitconfig
-        Some configs, such as unicode output and color output support will be stored here.
-        Additionally, the periodic update check information is stored here.
-
-    ~/.gittemplate/hooks
-    ~/.gittemplate/info/exclude
-        These files will be updated if you choose to install the hooks into your
-        repository template by running 'git hooks install-template'.
 
 ## Common Arguments:
     <path>...
@@ -141,6 +113,48 @@ or future repositonies.
         The command accepts a list of hook script names. These names must
         indicate scripts in the repo's .githooks directory. Standard git hook
         names are not considered valid items in this list.
+
+## Files:
+    .githooks/
+        This is where git-hooks will look for default hook scripts. Place your
+        hook scripts in here rather than .git/hooks. Your hook scripts should
+        be executable and follow the naming convention:
+
+            <standard git hook name>-<custom suffix>[.<file extension>]
+
+        They will be executed in alphabetical order, so if you wish to control
+        the order of execution, take that into account when naming the files.
+
+        Examples: .githooks/pre-commit-00-style.sh
+                  .githooks/pre-commit-01-unittest.py
+
+    .git/config
+        git-hooks config settings will be stored in your repository's config
+        file. In the case of a bare repository, the config file is located at
+        ./config.
+
+    ~/.gitconfig
+        Some configs, such as unicode output and color output support will be stored here.
+        Additionally, the periodic update check information is stored here.
+
+    ~/.gittemplate/hooks
+    ~/.gittemplate/info/exclude
+        These files will be updated if you choose to install the hooks into your
+        repository template by running 'git hooks install-template'.
+
+## Configuration:
+    Set these git config values (recommended that you use --global) to modify git-hooks behavior.
+
+    git-hooks.unicode [default=true]
+        Use unicode glyphs in certain operations' output (eg. git-hooks list)
+        If false, standard ascii characters will be used instead
+
+    git-hooks.color [default=true]
+        Use colorized output.
+
+    git-hooks.last-check
+        Internal use only.
+        Records the last time the update check was performed.
 
 ## Operations:
 
@@ -193,7 +207,7 @@ or future repositonies.
 
     install-template 
         Installs the multiplexer scripts into ~/.gittemplate/hooks (or
-        into the location defined by the init.templatedir config value).
+        into the location defined by the init.templateDir config value).
         This will cause any subsequently cloned or created repositories to
         automatically populate their .git/hooks directories with the
         multiplexer script.
@@ -214,7 +228,7 @@ or future repositonies.
     
         <subpath to hooks>: The collection-relative path to the hook directories.
 
-    include <collection name> <git hook> <hook script> [<new name>]
+    include <collection name> <git hook> <hook executable> [<new name>]
         Link an existing script from a collection into this repository.
         If <new name> is provided, that name will be used instead of <hook script>
         for the reference file installed into the repository. This is useful when one
