@@ -1179,19 +1179,30 @@ function git_hooks__main {
 #############################################
 function git_hooks__run_referenced_hook {
     # This function executes a "script" created by the "git hooks include" command
-    local hook_path collection_name collection_subpath
+    local hook_path c_name c_subpath git_hooks_config
+    local git_hooks_config="${githooks_dir}/config"
+    local collections_path="${githooks_dir}/.collections"
 
+    git_hooks_config="${githooks_dir}/config"
     hook_path="$1"
     shift
 
-    collection_name="$(git config -f "$hook_path" --get git-hooks.collection)"
-    collection_subpath="$(git config -f "${githooks_dir}/config" --get "collection.${collection_name}.subpath")" ||:
+    c_name="$(git config -f "$hook_path" --get git-hooks.collection)"
+    c_subpath="$(git config -f "${githooks_dir}/config" --get "collection.${c_name}.subpath")" ||:
+
+    # Check the collection repo first, then allow overrides from local repo
+    if c_subpath_tmp=$(git config -f "${collections_path}/${c_name}/.git-hooks-collection" --get "collection.subpath") 2>/dev/null; then
+        c_subpath="$c_subpath_tmp"
+    fi
+    if c_subpath_tmp=$(git config -f "$git_hooks_config" --get "collection.${c_name}.subpath") 2>/dev/null; then
+        c_subpath="$c_subpath_tmp"
+    fi
 
     # Retrieve/update the collection referenced in this config
-    git_hooks__sync_collection "$collection_name"
-    git_hooks__ensure_collection "$collection_name"
+    git_hooks__sync_collection "$c_name"
+    git_hooks__ensure_collection "$c_name"
 
-    "${githooks_dir}/.collections/${collection_name}/${collection_subpath:+${collection_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
+    "${githooks_dir}/.collections/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
 }
 
 # Determine if this file is being sourced or invoked
@@ -1211,4 +1222,3 @@ if [[ ".$0" == ".${BASH_SOURCE[0]}" ]]; then
         git_hooks__main "$@" ||:
     fi
 fi
-
