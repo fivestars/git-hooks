@@ -11,14 +11,21 @@ function jira_is_valid_branch_name () {
     #    JIRA-1234-some-stuff
     #    myname-JIRA-1234
     #    myname-JIRA-1234-some-stuff
+    #    myname2-JIRA-1234-some-stuff-v2
+    #    2myname-JIRA-1234-some-stuff-v2
     #
-    # Return: 1 or 0
+    # Return: 0 or 1
     # Stdout: <none>
     # Stderr: <none>
-    grep -q '^\([a-z]\+-\)\?[A-Z]\+-[0-9]\+\(-[a-z0-9]\+\)*$' <<<"$1"
+    grep -qE '^([a-z0-9]+-)?[A-Z]+-[0-9]+(-[a-z0-9]+)*$' <<<"$1"
 }
 
 function jira_get_ticket_from_branch_name () {
+    # Extract the JIRA-1243 portion of a well-formed branch name.
+    #
+    # Return: 0 or 1
+    # Stdout: The Jira issue portion of the branch name, if present
+    # Stderr: <none>
     local branch="$1"
 
     jira_is_valid_branch_name "$branch" && sed -E "s/^[^A-Z]*([A-Z]+-[0-9]+).*$/\\1/" <<<"$branch"
@@ -111,7 +118,7 @@ function jira_get_ticket () {
             jira_get_ticket
             ;;
 
-        *)  if grep -q "^[0-9]\\+" <<<"$response"; then
+        *)  if grep -qE "^[0-9]+" <<<"$response"; then
                 echo "${project}-${response}"
             else
                 printf >&2 "${c_error}%s${c_reset}\\n" "Must be a numeric value"
@@ -133,7 +140,7 @@ function jira_get_suffix () {
     printf >&2 "${c_prompt}%s:${c_reset} " "Provide a helpful suffix (optional)"
 
     read -r response
-    if grep -q -E '^$|^[a-z0-9]+(-[a-z0-9]+)*$' <<<"$response"; then
+    if grep -qE '^$|^[a-z0-9]+(-[a-z0-9]+)*$' <<<"$response"; then
         echo "${response:+"-$response"}"
     else
         printf >&2 "${c_error}%s${c_reset}\\n" "Must use lowercase, alpha-numeric and hyphens(inclusively) only"
@@ -207,7 +214,7 @@ function jira_select_project () {
             continue
         fi
 
-        if ! grep -q -E "^$(xargs <<<"${projects[@]}" | sed 's/ /\$|\^/g')$" <<<"$response"; then
+        if ! grep -qE "^$(xargs <<<"${projects[@]}" | sed 's/ /\$|\^/g')$" <<<"$response"; then
             printf >&2 "${c_error}%s${c_reset}\\n" "Not a valid project key"
             response=
             continue
