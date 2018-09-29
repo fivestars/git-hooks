@@ -350,12 +350,6 @@ function git_hooks__require_git_dir {
 }
 
 
-function git_hooks__ensure_hook_dirs {
-    mkdir -p "$githooks_dir"
-    mkdir -p "$global_githooks_dir"
-}
-
-
 function git_hooks__is_git_hook {
     local hook name="$1"
     for hook in "${git_hook_names[@]}"; do
