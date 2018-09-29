@@ -512,12 +512,13 @@ function git_hooks_install {
 
 function git_hooks_add_collection {
     : <<-ARGS
-	    <collection name> <clone url> [<subpath to hooks>]
+	    [-g|--global] <collection name> <clone url> [<subpath to hooks>]
 	ARGS
     : <<-HELP
 	    Configures this repository to be able to reference git hooks hosted
 	    in a remote locatior (currently only supports git repositories).
 
+        [-g|--global]:      The collection will be considered available to all repos
 	    <collection name>:  The internal name for the collection. Must be unique
 	                        within this repository.
 
@@ -1085,7 +1086,7 @@ HELP
 
 function git_hooks_include {
     : <<-ARGS
-	    <collection name> <git hook> <hook executable> [<new name>]
+	    [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
 	ARGS
     : <<-HELP
 	    Link an existing script from a collection into this repository.
@@ -1094,6 +1095,12 @@ function git_hooks_include {
 	    wishes to specify a strict order to in which to run multiple scripts for
 	    <git hook>. Just provide a numeric prefix on the <new name> to indicate
 	    the script's place in the running order.
+
+        Specify '--global' if you want to reference a hook in a global collection.
+        Using this, it's possible to take advantage of project-agnostic hooks without
+        even placing them (or references to them) under your project's source control.
+        Bear in mind that some hooks will place files under the project's source
+        control as a side-effect of their behavior. This is to be expected.
 	HELP
     local hooks_dir="$githooks_dir" global=''
 

@@ -72,8 +72,8 @@ or future repositonies.
     or: git hooks uninstall-command 
     or: git hooks install-template 
     or: git hooks uninstall-template 
-    or: git hooks add-collection <collection name> <clone url> [<subpath to hooks>]
-    or: git hooks include <collection name> <git hook> <hook executable> [<new name>]
+    or: git hooks add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
+    or: git hooks include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
@@ -216,10 +216,11 @@ or future repositonies.
     uninstall-template 
         Undoes the effects of 'install-template'.
 
-    add-collection <collection name> <clone url> [<subpath to hooks>]
+    add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
         Configures this repository to be able to reference git hooks hosted
         in a remote locatior (currently only supports git repositories).
     
+            [-g|--global]:      The collection will be considered available to all repos
         <collection name>:  The internal name for the collection. Must be unique
                             within this repository.
     
@@ -227,13 +228,19 @@ or future repositonies.
     
         <subpath to hooks>: The collection-relative path to the hook directories.
 
-    include <collection name> <git hook> <hook executable> [<new name>]
+    include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
         Link an existing script from a collection into this repository.
         If <new name> is provided, that name will be used instead of <hook script>
         for the reference file installed into the repository. This is useful when one
         wishes to specify a strict order to in which to run multiple scripts for
         <git hook>. Just provide a numeric prefix on the <new name> to indicate
         the script's place in the running order.
+    
+            Specify '--global' if you want to reference a hook in a global collection.
+            Using this, it's possible to take advantage of project-agnostic hooks without
+            even placing them (or references to them) under your project's source control.
+            Bear in mind that some hooks will place files under the project's source
+            control as a side-effect of their behavior. This is to be expected.
 
     check-support 
         Checks for differences in the list of hooks supported by
