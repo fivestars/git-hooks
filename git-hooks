@@ -95,7 +95,17 @@ function git_hooks__ensure_gnu_getopt {
 }
 
 function git_hooks__ensure_collection {
-    local collections_path="${githooks_dir}/.collections"
+    local hooks_dir="$githooks_dir"
+
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local collections_path="${hooks_dir}/.collections"
     local c_name="$1"
 
     [[ -d "${collections_path}/${c_name}" ]]
@@ -340,8 +350,9 @@ function git_hooks__require_git_dir {
 }
 
 
-function git_hooks__ensure_hook_dir {
+function git_hooks__ensure_hook_dirs {
     mkdir -p "$githooks_dir"
+    mkdir -p "$global_githooks_dir"
 }
 
 
@@ -520,11 +531,21 @@ function git_hooks_add_collection {
 
 	    <subpath to hooks>: The collection-relative path to the hook directories.
 	HELP
-    local c_name="$1" c_type="git" c_location="$2" c_subpath="${3:-}"
-    local git_hooks_config="${githooks_dir}/config"
-    local collections_path="${githooks_dir}/.collections"
+    local hooks_dir="$githooks_dir"
 
-    mkdir -p "$githooks_dir"
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
+    local c_name="$1" c_type="git" c_location="$2" c_subpath="${3:-}"
+
+    mkdir -p "$hooks_dir"
 
     git config -f "$git_hooks_config" --unset-all collection.names "^${c_name}\$" &>/dev/null ||:
     git config -f "$git_hooks_config" --remove-section "collection.$c_name" &>/dev/null ||:
@@ -542,8 +563,19 @@ function git_hooks_add_collection {
 
 
 function git_hooks__sync_collection {
-    local git_hooks_config="${githooks_dir}/config"
-    local collections_path="${githooks_dir}/.collections"
+    git_hooks__ensure_gnu_getopt
+
+    local hooks_dir="$githooks_dir"
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
     local c_name="$1" c_type c_location
 
     # Ensure we know about the collection
@@ -574,8 +606,7 @@ function git_hooks__sync_collection {
 
 function git_hooks_uninstall {
     : <<-HELP
-	    Removes the multiplexer hooks from the .git/hooks directory and
-	    removes the 'git-hooks' symlink from /usr/local/bin, if present.
+	    Removes the multiplexer hooks from the .git/hooks directory.
 	HELP
 
     printf "${c_action}%s${c_reset}\\n" "Removing multiplexers"
@@ -734,7 +765,7 @@ function git_hooks_list {
 	    List all hooks for the current repository and their runnable state.
 	HELP
 
-    local total count disabled unicode hook_name previous_hook_name hooks_list max_len=0 padding pad
+    local total count=0 disabled=false unicode hook_name previous_hook_name hooks_list max_len=0 padding pad
 
     unicode="$(git config --bool git-hooks.unicode)" || unicode=true
 
@@ -744,6 +775,8 @@ function git_hooks_list {
     done <<<"$hooks_list"
 
     while read -r total hook_name hook hook_path; do
+        [[ -n $total ]] || break
+
         echo -en "${c_reset}"
         if [[ "${previous_hook_name:-}" != "${hook_name}" ]]; then
             previous_hook_name="$hook_name"
@@ -785,11 +818,12 @@ function git_hooks_list {
 
 function git_hooks__get_hooks {
     local -a hook_names=( "${@:-${git_hook_names[@]}}" )
+    local hook_dirs=""
     local hook_name total path name
-    # local hook_scripts hook_script
-    # hook name path normalized disabled count total unicode connector
 
-    [[ -d "$githooks_dir" ]] || return
+    [[ -d "$githooks_dir" ]] && hook_dirs="$hook_dirs $githooks_dir"
+    [[ -d "$global_githooks_dir" ]] && hook_dirs="$hook_dirs $global_githooks_dir"
+    [[ -n "$hook_dirs" ]] || return
 
     for hook_name in "${hook_names[@]}"; do
         if ! git_hooks__is_git_hook "$hook_name"; then
@@ -797,13 +831,15 @@ function git_hooks__get_hooks {
             continue
         fi
 
-        total=$(find "$githooks_dir" -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | wc -l)
+        # shellcheck disable=2086
+        total=$(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | wc -l)
 
+        # shellcheck disable=2086
         while read -r path; do
             name="${path##*${hook_name}}"
             name="${name:1:${#name}}"
             echo "$total $hook_name $name $path"
-        done < <(find "$githooks_dir" -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~")
+        done < <(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~")
     done
 }
 
@@ -938,6 +974,10 @@ function git_hooks_run {
             path="${githooks_dir}/${name}"
         elif [[ -f "${githooks_dir}/${hook}/${name#${hook}-}" ]]; then
             path="${githooks_dir}/${hook}/${name#${hook}-}"
+        elif [[ -f "${global_githooks_dir}/${name}" ]]; then
+            path="${global_githooks_dir}/${name}"
+        elif [[ -f "${global_githooks_dir}/${hook}/${name#${hook}-}" ]]; then
+            path="${global_githooks_dir}/${hook}/${name#${hook}-}"
         else
             printf >&2 "${c_error}%s${c_reset}\\n" "Could not find hook or custom script"
             return 1
@@ -1061,16 +1101,26 @@ function git_hooks_include {
 	    <git hook>. Just provide a numeric prefix on the <new name> to indicate
 	    the script's place in the running order.
 	HELP
-    local git_hooks_config="${githooks_dir}/config"
-    local collections_path="${githooks_dir}/.collections"
+    local hooks_dir="$githooks_dir" global=''
+
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; global='-g'; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
     local c_name="$1" hook_name="$2" hook="$3" as="${4:-}" c_location c_subpath="" c_subpath_tmp src_path path
 
     # Ensure we know about the collection
     git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
     c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
 
-    git_hooks__sync_collection "$c_name"
-    git_hooks__ensure_collection "$c_name"
+    git_hooks__sync_collection "$global" "$c_name"
+    git_hooks__ensure_collection "$global" "$c_name"
 
     # Check the collection repo first, then allow overrides from local repo
     if c_subpath_tmp=$(git config -f "${collections_path}/${c_name}/.git-hooks-collection" --get "collection.subpath") 2>/dev/null; then
@@ -1087,11 +1137,12 @@ function git_hooks_include {
             return 1
         fi
 
-        path="${githooks_dir}/${hook_name}/${as:-${hook}}"
+        path="${hooks_dir}/${hook_name}/${as:-${hook}}"
         mkdir -p "$(dirname "$path")"
         printf '#!/usr/bin/env git-hooks\n\n' > "$path"
         git config -f "$path" git-hooks.collection "$c_name"
         git config -f "$path" git-hooks.hook "${hook_name}/${hook}"
+        [[ -n "$global" ]] && git config -f "$path" --bool git-hooks.global true
         chmod +x "$path"
         printf "${c_action}%s ${c_value}%s ${c_action}%s ${c_value}%s${c_reset}\\n" \
             "Linked" "${path#*\.githooks/}" "to" "${src_path#${collections_path}/}"
@@ -1124,6 +1175,7 @@ function git_hooks__check_for_updates {
 #############################################
 
 # Populated in _verify_dirs
+global_githooks_dir="$HOME/.githooks"
 git_dir="$(git rev-parse --git-dir 2>/dev/null)" || git_dir=""
 repo_dir="$(git rev-parse --show-toplevel 2>/dev/null)" || repo_dir=""
 repo_is_bare="$(git rev-parse --is-bare-repository 2>/dev/null)" || repo_is_bare=false
@@ -1153,18 +1205,13 @@ function git_hooks__main {
 
     # Determine the correct command to run and pass it the rest of the un-parsed options
     case "$git_hooks_command" in
-        # Require a git repository and a .githooks directory in the repository for these commands
-        list|include|disable|enable|run|parallel|show-input)
-            git_hooks__require_git_dir
-            git_hooks__ensure_hook_dir
-            ;;
-
-        # Require a git repository but not a .githooks directory in the repository
-        install|uninstall)
+        # Require a git repository for these commands
+        install|uninstall|list|disable|enable|run|parallel|show-input)
             git_hooks__require_git_dir
             ;;
 
-        add-collection|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help)
+        # No special requirements
+        add-collection|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
             ;;
 
         *)  printf >&2 "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "git-hooks:" "$git_hooks_command" "is not a git-hooks command." >&2
@@ -1179,16 +1226,26 @@ function git_hooks__main {
 #############################################
 function git_hooks__run_referenced_hook {
     # This function executes a "script" created by the "git hooks include" command
-    local hook_path c_name c_subpath git_hooks_config
-    local git_hooks_config="${githooks_dir}/config"
-    local collections_path="${githooks_dir}/.collections"
-
-    git_hooks_config="${githooks_dir}/config"
-    hook_path="$1"
+    local c_global c_name c_subpath
+    local hooks_dir
+    local git_hooks_config
+    local collections_path
+    local hook_path="$1"
     shift
 
+    c_global="$(git config -f "$hook_path" --bool --get git-hooks.global)" ||:
+    if [[ -n "$c_global" && "$c_global" ]]; then
+        hooks_dir=${global_githooks_dir}
+        c_global="-g"
+    else
+        hooks_dir=${githooks_dir}
+        c_global=""
+    fi
+
     c_name="$(git config -f "$hook_path" --get git-hooks.collection)"
-    c_subpath="$(git config -f "${githooks_dir}/config" --get "collection.${c_name}.subpath")" ||:
+    c_subpath="$(git config -f "${hooks_dir}/config" --get "collection.${c_name}.subpath")" ||:
+    git_hooks_config="${hooks_dir}/config"
+    collections_path="${hooks_dir}/.collections"
 
     # Check the collection repo first, then allow overrides from local repo
     if c_subpath_tmp=$(git config -f "${collections_path}/${c_name}/.git-hooks-collection" --get "collection.subpath") 2>/dev/null; then
@@ -1199,10 +1256,10 @@ function git_hooks__run_referenced_hook {
     fi
 
     # Retrieve/update the collection referenced in this config
-    git_hooks__sync_collection "$c_name"
-    git_hooks__ensure_collection "$c_name"
+    git_hooks__sync_collection "$c_global" "$c_name"
+    git_hooks__ensure_collection "$c_global" "$c_name"
 
-    "${githooks_dir}/.collections/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
+    "${hooks_dir}/.collections/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
 }
 
 # Determine if this file is being sourced or invoked

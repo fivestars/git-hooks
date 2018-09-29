@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Delete the cached commit message file created by prepare-commit-msg/template
+DESC
+
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/core.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
+# Provide the previous commit, since that's what the commit message would have been associated with
+rm -f "$(get_cached_commit_message_filename HEAD~)"

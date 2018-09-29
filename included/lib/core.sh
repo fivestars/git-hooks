@@ -97,3 +97,12 @@ function move_to_branch () {
         fi
     fi
 }
+
+function get_cached_commit_message_filename {
+    local commit="${1:-HEAD}"
+    local repo="$(basename "$(git rev-parse --show-toplevel)")"
+    local branch="$(git rev-parse --abbrev-ref "$commit")"
+    local hash="$(git rev-parse --short "$commit" 2>/dev/null ||:)"
+
+    echo "/tmp/git-commit-msg-${repo}-${branch}-${hash}"
+}

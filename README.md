@@ -196,8 +196,7 @@ or future repositonies.
         "-moved" suffix.
 
     uninstall 
-        Removes the multiplexer hooks from the .git/hooks directory and
-        removes the 'git-hooks' symlink from /usr/local/bin, if present.
+        Removes the multiplexer hooks from the .git/hooks directory.
 
     install-command 
         Creates a symlink to 'git-hooks' in /usr/local/bin
