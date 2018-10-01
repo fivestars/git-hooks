@@ -133,6 +133,14 @@ function md_inline_quotes {
     fi
 }
 
+function md_inline_bold {
+    if $USE_MARKDOWN; then
+        echo -n "**$***"
+    else
+        echo -n "$*"
+    fi
+}
+
 function md_inline_monospace {
     if $USE_MARKDOWN; then
         echo -n "\`$*\`"
@@ -179,6 +187,53 @@ $(md_no_indent_or_hash "
 
     This way you can break your monolithic hooks into individual files, giving
     you greater flexibility regarding which pieces to run and when.
+")
+
+$(md '##') Features:
+
+$(md '###') Run your hooks directly:
+$(md_no_indent_or_hash "
+    git-hooks allows you to invoke your hook scripts without being triggered by
+    a git action. This is useful for speeding up the process of debugging issues
+    that caused your hooks to fail in the first place. If you write your hook
+    scripts well, you can even pass extra arguments to your scripts that wouldn't
+    be present when being run from a git trigger. (eg. specifying a particular
+    unit test to speed up debugging).
+")
+
+$(md '###') Disable/enable particular hooks or hook scripts:
+$(md_no_indent_or_hash "
+    git-hooks gives you the ability to disable hooks down to the individual script
+    level. So if something is preventing a particular script from succeeding and
+    can be temporarily ignored, you can just disable that one and the other scripts
+    for that trigger will still apply. This is much better than $(md_inline_monospace --no-verify).
+")
+
+$(md '###') Hook repositories:
+$(md_no_indent_or_hash "
+    Rather than copying and pasting the same hook code into each of your
+    repositories, you can create a shared collection of hooks (as a git repo) and
+    simply reference those from within your repository. This way, as your hook
+    functionality evolves, you only need to push the code to the collection's
+    repo, and git-hooks will ensure that you pull down the latest.
+")
+
+$(md '###') Global hooks:
+$(md_no_indent_or_hash "
+    You can have "global hooks" on your machine. These will be run for any
+    repository that has git-hooks installed (ie. has the multiplexer scripts
+    in its $(md_inline_monospace .git/hooks) dir. See $(md_inline_bold Installation) below). This
+    is useful for applying consistent, project-agnostic rules across all of
+    your projects (such as commit message format/structure). These hooks can
+    be literal script files or reference hooks, but they will not be checked
+    into the source control of the repositories that they will affect. They
+    will appear and run alongside the repo's own hooks.
+
+    Global hooks will be enabled by default for all repos with git-hooks
+    installed. If you wish to prevent the global git hooks from running for
+    a repostiory, set the local git config value of $(md_inline_monospace "git-hooks.global-enabled")
+    to $(md_inline_monospace false). This will allow you to continue to use the repo's
+    source-controlled git hooks.
 ")
 
 $(md '##') Installation:
@@ -815,9 +870,12 @@ function git_hooks__get_hooks {
     local -a hook_names=( "${@:-${git_hook_names[@]}}" )
     local hook_dirs=""
     local hook_name total path name
+    local global_enabled
+
+    global_enabled=$(git config --bool git-hooks.global-enabled) || global_enabled=true
 
     [[ -d "$githooks_dir" ]] && hook_dirs="$hook_dirs $githooks_dir"
-    [[ -d "$global_githooks_dir" ]] && hook_dirs="$hook_dirs $global_githooks_dir"
+    "$global_enabled" && [[ -d "$global_githooks_dir" ]] && hook_dirs="$hook_dirs $global_githooks_dir"
     [[ -n "$hook_dirs" ]] || return
 
     for hook_name in "${hook_names[@]}"; do
