@@ -892,7 +892,7 @@ function git_hooks__get_hooks {
             name="${path##*${hook_name}}"
             name="${name:1:${#name}}"
             echo "$total $hook_name $name $path"
-        done < <(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~")
+        done < <(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | sort)
     done
 }
 
