@@ -17,6 +17,49 @@ configure it to do so.
 This way you can break your monolithic hooks into individual files, giving
 you greater flexibility regarding which pieces to run and when.
 
+## Features:
+
+### Run your hooks directly:
+
+git-hooks allows you to invoke your hook scripts without being triggered by
+a git action. This is useful for speeding up the process of debugging issues
+that caused your hooks to fail in the first place. If you write your hook
+scripts well, you can even pass extra arguments to your scripts that wouldn't
+be present when being run from a git trigger. (eg. specifying a particular
+unit test to speed up debugging).
+
+### Disable/enable particular hooks or hook scripts:
+
+git-hooks gives you the ability to disable hooks down to the individual script
+level. So if something is preventing a particular script from succeeding and
+can be temporarily ignored, you can just disable that one and the other scripts
+for that trigger will still apply. This is much better than `--no-verify`.
+
+### Hook repositories:
+
+Rather than copying and pasting the same hook code into each of your
+repositories, you can create a shared collection of hooks (as a git repo) and
+simply reference those from within your repository. This way, as your hook
+functionality evolves, you only need to push the code to the collection's
+repo, and git-hooks will ensure that you pull down the latest.
+
+### Global hooks:
+
+You can have global hooks on your machine. These will be run for any
+repository that has git-hooks installed (ie. has the multiplexer scripts
+in its `.git/hooks` dir. See **Installation** below). This
+is useful for applying consistent, project-agnostic rules across all of
+your projects (such as commit message format/structure). These hooks can
+be literal script files or reference hooks, but they will not be checked
+into the source control of the repositories that they will affect. They
+will appear and run alongside the repo's own hooks.
+
+Global hooks will be enabled by default for all repos with git-hooks
+installed. If you wish to prevent the global git hooks from running for
+a repostiory, set the local git config value of `git-hooks.global-enabled`
+to `false`. This will allow you to continue to use the repo's
+source-controlled git hooks.
+
 ## Installation:
 
 #### Install GNU getopt (if not already present for your platform).
@@ -72,8 +115,8 @@ or future repositonies.
     or: git hooks uninstall-command 
     or: git hooks install-template 
     or: git hooks uninstall-template 
-    or: git hooks add-collection <collection name> <clone url> [<subpath to hooks>]
-    or: git hooks include <collection name> <git hook> <hook executable> [<new name>]
+    or: git hooks add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
+    or: git hooks include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
@@ -196,8 +239,7 @@ or future repositonies.
         "-moved" suffix.
 
     uninstall 
-        Removes the multiplexer hooks from the .git/hooks directory and
-        removes the 'git-hooks' symlink from /usr/local/bin, if present.
+        Removes the multiplexer hooks from the .git/hooks directory.
 
     install-command 
         Creates a symlink to 'git-hooks' in /usr/local/bin
@@ -217,10 +259,11 @@ or future repositonies.
     uninstall-template 
         Undoes the effects of 'install-template'.
 
-    add-collection <collection name> <clone url> [<subpath to hooks>]
+    add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
         Configures this repository to be able to reference git hooks hosted
         in a remote locatior (currently only supports git repositories).
     
+            [-g|--global]:      The collection will be considered available to all repos
         <collection name>:  The internal name for the collection. Must be unique
                             within this repository.
     
@@ -228,13 +271,19 @@ or future repositonies.
     
         <subpath to hooks>: The collection-relative path to the hook directories.
 
-    include <collection name> <git hook> <hook executable> [<new name>]
+    include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
         Link an existing script from a collection into this repository.
         If <new name> is provided, that name will be used instead of <hook script>
         for the reference file installed into the repository. This is useful when one
         wishes to specify a strict order to in which to run multiple scripts for
         <git hook>. Just provide a numeric prefix on the <new name> to indicate
         the script's place in the running order.
+    
+            Specify '--global' if you want to reference a hook in a global collection.
+            Using this, it's possible to take advantage of project-agnostic hooks without
+            even placing them (or references to them) under your project's source control.
+            Bear in mind that some hooks will place files under the project's source
+            control as a side-effect of their behavior. This is to be expected.
 
     check-support 
         Checks for differences in the list of hooks supported by
