@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Restore a failed commit message, if present
+DESC
+
+: <<HELP
+If a previous commit at this HEAD fails due to a 'commit-msg-format' failure,
+this hook will reload the failed message for usage/editing in the hooked commit.
+HELP
+
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/core.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
+clear_cached_commit_message_in_use
+
+case "${2:-}" in
+    # Normal commit
+    ""|template) ;;
+
+    # Unhandled commit types
+    *) exit 0 ;;
+esac
+
+tmp_msg_filename="$(get_cached_commit_message_filename)"
+if [[ -f "$tmp_msg_filename" ]]; then
+    # Found the failed commit message created by commit-msg-format
+    printf "${c_action}%s${c_reset}\\n" "Found previous commit message for these changes:"
+    cat "$tmp_msg_filename"
+    echo
+
+    printf "${c_prompt}%s${c_reset}" "Use this commit message? ([y]es/[n]o/[d]iscard): "
+    read -r response
+    case $response in
+        n|no) exit 0 ;;
+        d|discard) rm "$tmp_msg_filename"; exit 0 ;;
+        *)  ;;
+    esac
+
+    # Use the previous message as a starting point
+    set_cached_commit_message_in_use "$tmp_msg_filename" "$1"
+fi

@@ -25,7 +25,7 @@ if [[ "$(sed -e '/^#.*/d' -e '/^$/d' "$commit_msg" | wc -l)" -eq 0 ]]; then
 fi
 
 # Save the msg in case our commit fails and we want to preload it next time
-# in prepare-commit-msg-template.
+# in a prepare-commit-msg hook..
 cat "$commit_msg" >"$(get_cached_commit_message_filename)"
 
 # Sentinel value set to false if any checks fail. This allows us to get output
