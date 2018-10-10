@@ -25,9 +25,9 @@ function is_protected_branch () {
         protected="$(xargs <.protected)"
     fi
     protected="${protected:-master}"
-    protected="^${protected// /\$\\|\^}\$"
+    protected="^${protected// /\$|^}\$"
 
-    grep -q "$protected" <<<"$1"
+    grep -qE "$protected" <<<"$1"
 }
 
 function open_uri () {
