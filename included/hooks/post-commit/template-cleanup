@@ -9,5 +9,9 @@ DESC
 # shellcheck source=included/lib/core.sh
 . "$(dirname "${BASH_SOURCE[@]}")/../../lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
+# Deprecation warning
+printf "${c_error}%s${c_reset}\\n" "post-commit/template-cleanup is deprecated."
+printf "${c_error}%s${c_reset}\\n" "Use post-commit/cached-cleanup instead."
+
 # Provide the previous commit, since that's what the commit message would have been associated with
 rm -f "$(get_cached_commit_message_filename HEAD~)"

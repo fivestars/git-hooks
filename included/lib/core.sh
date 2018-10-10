@@ -106,3 +106,16 @@ function get_cached_commit_message_filename {
 
     echo "/tmp/git-commit-msg-${repo}-${branch}-${hash}"
 }
+
+function clear_cached_commit_message_in_use {
+    rm -f .git/CACHED_COMMIT_MSG
+}
+
+function set_cached_commit_message_in_use {
+    cp "$1" .git/CACHED_COMMIT_MSG
+    mv "$1" "$2"
+}
+
+function is_cached_commit_message_in_use {
+    [[ -f .git/CACHED_COMMIT_MSG ]]
+}

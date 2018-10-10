@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Inject the commit message into a commit message template that contains the '\$SUBJECT' placeholder
+DESC
+
+: <<HELP
+If the commit is using a message template (via "commit -t", or the
+"commit.template" config value) and the commit message was provided
+at the command-line with "-m <message>", use the template and substitute
+any '\$SUBJECT' placeholders in the template with the provided "<message>".
+
+If the template is not provided, or the template does not contain any
+'\$SUBJECT' placeholders, this hook will have no effect.
+HELP
+
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/core.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/core.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
+# No need to do anything if we're using a previously rejected commit message
+is_cached_commit_message_in_use && exit
+
+case "${2:-}" in
+    # Look for commits with a message provided by -m at command-line.
+    # This means git will not prompt us to further edit the message.
+    message)
+        [[ -f .git/CHERRY_PICK_HEAD ]] && exit
+
+        # We will need to manually apply the template, so let's verify that it exists
+        template="$(git config commit.template)" && [[ -f "$template" ]] || exit
+
+        # Read in the provided message
+        read -r -d '' message <"$1" ||:
+
+        # Create a temporary file to assist with manipulations
+        tmpfile=$(mktemp -t git-commit-msg-template.XXXX); trap 'rm -f $tmpfile' EXIT
+
+        # Remove comments from template, since we won't be sending it through
+        # the editor flow where git would do this for us automatically.
+        # Then inject the $message into the $SUBJECT placeholder (if present).
+        sed -e 's/^#.*//g' "$template" \
+        | uniq \
+        | SUBJECT="$message" envsubst "\$SUBJECT" \
+        >"$1"
+
+        ;;
+
+    # We didn't receive a message yet, but we have a template. This means git
+    # will prompt the user to edit the message. Let's strip out the $SUBJECT
+    # placeholder (if present).
+    template)
+        tmpfile=$(mktemp -t git-commit-msg-template.XXXX); trap 'rm -f $tmpfile' EXIT
+        SUBJECT="" envsubst "\$SUBJECT" <"$1" >"$tmpfile"
+        mv "$tmpfile" "$1"
+        ;;
+
+    # Unhandled commit types
+    *) exit 0
+        ;;
+esac

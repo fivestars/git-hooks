@@ -61,6 +61,10 @@ else
         esac
     fi
 
+    # Deprecation warning
+    printf "${c_error}%s${c_reset}\\n" "prepare-commit-msg/template is deprecated."
+    printf "${c_error}%s${c_reset}\\n" "Use prepare-commit-msg/cached and prepare-commit-msg/subject instead."
+
     # Found a .gitmessage file in our repo
     printf "${c_action}%s${c_reset}\\n" "Using $(basename "$(git rev-parse --show-toplevel)")/.gitmessage template"
 
