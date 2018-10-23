@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -eu -o pipefail
+
+: <<DESC
+Appends Sentry "Fixes XXXX" lines for any Jira issue links that contain a
+Sentry link as the first line in the Jira issue description.
+DESC
+
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+# shellcheck source=included/lib/sentry.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/sentry.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
+commit_msg="$1"
+
+# Lets just send all output to stderr
+exec >&2
+
+if [[ -f $(git rev-parse --git-dir)/MERGE_HEAD ]]; then
+    # This is a merge commit, don't enforce rules
+    exit
+fi
+
+if [[ "$(sed -e '/^#.*/d' -e '/^$/d' "$commit_msg" | wc -l)" -eq 0 ]]; then
+    # Allow git commit to abort normally on an empty commit message
+    exit
+fi
+
+
+function get_sentry_issue_link {
+    jq -r '.fields.description' \
+        | head -n 1 \
+        | grep -E "https://sentry.io/.+/issues/[0-9]+"
+}
+
+function get_sentry_issue_id {
+     sed -E 's|^.*/issues/([0-9]+)/$|\1|'
+}
+
+found_sentry_issue=false
+
+for jira_issue in $(grep -E "^(\\[)?[A-Z]+-[0-9]+(\\])?" "$commit_msg" | sed -E 's/^[^A-Z]*([A-Z]+-[0-9]+).*$/\1/' | xargs -n 1 | sort | uniq); do
+    sentry_issue_link="$(jira_get_issue "$jira_issue" | get_sentry_issue_link)" || sentry_issue_link=""
+    sentry_issue_id="$(echo "$sentry_issue_link" | get_sentry_issue_id)" || sentry_issue_id=""
+    sentry_issue_short_id="$(sentry_get_issue_short_id "$sentry_issue_id")" || sentry_issue_short_id=""
+
+    if [[ -n "$sentry_issue_short_id" ]]; then
+        if ! "$found_sentry_issue"; then
+            found_sentry_issue=true
+            {
+                echo
+                echo "**Sentry issues**"
+            } >> "$commit_msg"
+        fi
+
+        echo >> "$commit_msg" "Fixes ${sentry_issue_short_id} [(link)](${sentry_issue_link})"
+    fi
+done
