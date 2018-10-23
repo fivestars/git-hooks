@@ -78,10 +78,10 @@ function jira_get_username_prefix () {
     # Stderr: Instructions on how to provide the value
     local response username prefix
 
-    if ! git config --global jira.username-prefix 2>/dev/null; then
+    if ! git config jira.username-prefix 2>/dev/null; then
         jira_ensure_configuration_username >&2
 
-        username=$(git config --global jira.username)
+        username=$(git config jira.username)
         prefix="${username%%.*}"
 
         printf >&2 "${c_prompt}%s (${c_value}%s${c_prompt}):${c_reset} " "Branch prefix name to use" "$prefix"
@@ -114,7 +114,7 @@ function jira_get_ticket () {
     read -r response
     case "$response" in
         '') printf >&2 "    ${c_action}%s${c_reset}\\n" "Create a new ticket in Jira now"
-            open_uri >&2 "https://$(git config --global jira.hostname)/secure/CreateIssue.jspa?pid=$project_id"
+            open_uri >&2 "https://$(git config jira.hostname)/secure/CreateIssue.jspa?pid=$project_id"
             jira_get_ticket
             ;;
 
@@ -222,7 +222,7 @@ function jira_select_project () {
     done
 
     git config -f .jira project.key "$response"
-    git config -f .jira project."$response".id "$(jira_get_projects | jira_get_project "$response" | jira_get_project_field id)"
+    git config -f .jira project."$response".id "$(jira_get_projects | jira_get_jq_property "$response" | jira_get_jq_property id)"
     git add .jira
 
     echo "$response"
@@ -238,27 +238,27 @@ function jira_get_projects () {
 
     jira_ensure_access >&2
 
-    projects=$(curl -Ssf -u "$(git config --global jira.username):$(git config --global jira.api-token)" \
-               "https://$(git config --global jira.hostname)/rest/api/2/project") || return 1
+    projects=$(curl -Ssf -u "$(git config jira.username):$(git config jira.api-token)" \
+               "https://$(git config jira.hostname)/rest/api/2/project") || return 1
     jq -r 'reduce .[] as $item ({}; . + {($item.key): {id: $item.id, name: $item.name, uri:$item.self}} )' <<<"$projects"
 }
 
-function jira_get_project () {
-    # Receives the result of jira_get_projects and outputs the JSON data for the given project
-    #
-    # Return: 0 or 1
-    # Stdout: JSON data for the project, if present
-    # Stderr: <none>
-    jq -r --arg key "$1" '.[$key]'
+function jira_get_issue {
+    local issue_id="$1"
+
+    jira_ensure_access >&2
+
+    curl -Ssf -u "$(git config jira.username):$(git config jira.api-token)" \
+        "https://$(git config jira.hostname)/rest/api/2/issue/$issue_id"
 }
 
-function jira_get_project_field () {
-    # Receives the result of jira_get_project and outputs the JSON data for the given field
+function jira_get_jq_property () {
+    # Receives a json body and outputs the JSON data for the given key
     #
     # Return: 0 or 1
-    # Stdout: Field value for the project JSON data, if present
+    # Stdout: JSON data for the key, if present
     # Stderr: <none>
-    jq -r --arg field "$1" '.[$field]'
+    jq -r --arg key "$1" '.[$key]'
 }
 
 function jira_ensure_access () {
@@ -272,8 +272,8 @@ function jira_ensure_access () {
 
     jira_ensure_configuration "$invalid"
 
-    curl_user="$(git config --global jira.username):$(git config --global jira.api-token)"
-    myself_uri="https://$(git config --global jira.hostname)/rest/api/2/myself"
+    curl_user="$(git config jira.username):$(git config jira.api-token)"
+    myself_uri="https://$(git config jira.hostname)/rest/api/2/myself"
 
     if curl -Ssf -u "$curl_user" "$myself_uri" &>/dev/null; then
         if "$invalid"; then
@@ -310,7 +310,7 @@ function jira_ensure_configuration_hostname () {
     # Stderr: <none>
     local response invalid=${1:-false} hostname
 
-    if ! hostname=$(git config --global jira.hostname 2>/dev/null) || "$invalid"; then
+    if ! hostname=$(git config jira.hostname 2>/dev/null) || "$invalid"; then
         prompt_with_default_value "Enter the Jira hostname" "${hostname:-}"
 
         read -r response
@@ -330,7 +330,7 @@ function jira_ensure_configuration_username () {
     # Stderr: <none>
     local response invalid=${1:-false} username
 
-    if ! username="$(git config --global jira.username 2>/dev/null)" || "$invalid"; then
+    if ! username="$(git config jira.username 2>/dev/null)" || "$invalid"; then
         prompt_with_default_value "Enter your Jira email address" "${username:-}"
 
         read -r response
@@ -350,7 +350,7 @@ function jira_ensure_configuration_apitoken () {
     # Stderr: <none>
     local response invalid=${1:-false} api_token
 
-    if ! api_token="$(git config --global jira.api-token 2>/dev/null)" || "$invalid"; then
+    if ! api_token="$(git config jira.api-token 2>/dev/null)" || "$invalid"; then
         if [[ -z "${api_token:-}" ]]; then
             printf "    ${c_action}%s${c_reset}\\n" "Create a Jira API token"
             open_uri "https://id.atlassian.com/manage/api-tokens"
@@ -365,3 +365,4 @@ function jira_ensure_configuration_apitoken () {
         esac
     fi
 }
+
