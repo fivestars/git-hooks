@@ -195,10 +195,6 @@ or future repositonies.
     git-hooks.color [default=true]
         Use colorized output.
 
-    git-hooks.last-check
-        Internal use only.
-        Records the last time the update check was performed.
-
 ## Operations:
 
     list [<git hook>...]
