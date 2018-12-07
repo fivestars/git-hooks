@@ -2,69 +2,26 @@
 A tool for managing and invoking custom git hook scripts.
 
 ## Description:
-
-git-hooks is a tool to facilitate git hook management, specifically being
-able to store your hooks under source control within the repository itself
-and simply reference them from a multiplexer hook installed in the
-`.git/hooks` directory.
-
-The expected usage is to write an arbitrary number of individual hook
-scripts associated with a single standard git hook and store them in the
-`.githooks` directory. When git invokes the multiplexer script in `.git/hooks`,
-it will call your custom scripts sequentially, or in parallel if you
-configure it to do so.
-
-This way you can break your monolithic hooks into individual files, giving
-you greater flexibility regarding which pieces to run and when.
+ git-hooks is a tool to facilitate git hook management, specifically being able to store your hooks under source control within the repository itself and simply reference them from a multiplexer hook installed in the `.git/hooks` directory.  The expected usage is to write an arbitrary number of individual hook scripts associated with a single standard git hook and store them in the `.githooks` directory. When git invokes the multiplexer script in `.git/hooks`, it will call your custom scripts sequentially, or in parallel if you configure it to do so.  This way you can break your monolithic hooks into individual files, giving you greater flexibility regarding which pieces to run and when.  
 
 ## Features:
 
 ### Run your hooks directly:
-
-git-hooks allows you to invoke your hook scripts without being triggered by
-a git action. This is useful for speeding up the process of debugging issues
-that caused your hooks to fail in the first place. If you write your hook
-scripts well, you can even pass extra arguments to your scripts that wouldn't
-be present when being run from a git trigger. (eg. specifying a particular
-unit test to speed up debugging).
+ git-hooks allows you to invoke your hook scripts without being triggered by a git action. This is useful for speeding up the process of debugging issues that caused your hooks to fail in the first place. If you write your hook scripts well, you can even pass extra arguments to your scripts that wouldn't be present when being run from a git trigger. (eg. specifying a particular unit test to speed up debugging).  
 
 ### Disable/enable particular hooks or hook scripts:
-
-git-hooks gives you the ability to disable hooks down to the individual script
-level. So if something is preventing a particular script from succeeding and
-can be temporarily ignored, you can just disable that one and the other scripts
-for that trigger will still apply. This is much better than `--no-verify`.
+ git-hooks gives you the ability to disable hooks down to the individual script level. So if something is preventing a particular script from succeeding and can be temporarily ignored, you can just disable that one and the other scripts for that trigger will still apply. This is much better than `--no-verify`.  
 
 ### Hook repositories:
-
-Rather than copying and pasting the same hook code into each of your
-repositories, you can create a shared collection of hooks (as a git repo) and
-simply reference those from within your repository. This way, as your hook
-functionality evolves, you only need to push the code to the collection's
-repo, and git-hooks will ensure that you pull down the latest.
+ Rather than copying and pasting the same hook code into each of your repositories, you can create a shared collection of hooks (as a git repo) and simply reference those from within your repository. This way, as your hook functionality evolves, you only need to push the code to the collection's repo, and git-hooks will ensure that you pull down the latest.  
 
 ### Global hooks:
-
-You can have global hooks on your machine. These will be run for any
-repository that has git-hooks installed (ie. has the multiplexer scripts
-in its `.git/hooks` dir. See **Installation** below). This
-is useful for applying consistent, project-agnostic rules across all of
-your projects (such as commit message format/structure). These hooks can
-be literal script files or reference hooks, but they will not be checked
-into the source control of the repositories that they will affect. They
-will appear and run alongside the repo's own hooks.
-
-Global hooks will be enabled by default for all repos with git-hooks
-installed. If you wish to prevent the global git hooks from running for
-a repostiory, set the local git config value of `git-hooks.global-enabled`
-to `false`. This will allow you to continue to use the repo's
-source-controlled git hooks.
+ You can have global hooks on your machine. These will be run for any repository that has git-hooks installed (ie. has the multiplexer scripts in its `.git/hooks` dir. See **Installation** below). This is useful for applying consistent, project-agnostic rules across all of your projects (such as commit message format/structure). These hooks can be literal script files or reference hooks, but they will not be checked into the source control of the repositories that they will affect. They will appear and run alongside the repo's own hooks.  Global hooks will be enabled by default for all repos with git-hooks installed. If you wish to prevent the global git hooks from running for a repostiory, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
 
 ## Installation:
 
-#### Install GNU getopt (if not already present for your platform).
+#### Install GNU getopt (if not already present for your platform). 
 ```
-
     getopt -T
     if [[ $? -ne 4 ]]; then
         brew install gnu-getopt
@@ -74,32 +31,25 @@ source-controlled git hooks.
 
 ```
 
-#### Install `git hooks`
-
-This will symlink `git-hooks` to `/usr/local/bin`.
-This allows `git` to treat it as a first-class command. In other words, you can invoke its behavior
-via `git hooks ...`.
+#### Install `git hooks` 
+ This will symlink `git-hooks` to `/usr/local/bin`. This allows `git` to treat it as a first-class command. In other words, you can invoke its behavior via `git hooks ...`.  
 ```
     path/to/git-hooks/git-hooks install-command
+
 ```
 
-#### Install the multiplexers into a repository
+#### Install the multiplexers for all new repos (cloned or init'ed) 
+ This will make it so that you never have to run `git hooks install` again for this machine. This is useful when your repositories already have a `.githooks` directory with hook scripts in it or if you plan to make regular use of the `git hooks` functionality in other or future repositonies. Be sure to run `git hooks install` in any repositories that existed prior to installing the template configuration, as they will still need to be setup with the multiplexer scripts.  
+```
+    git hooks install-template
+
 ```
 
+#### Manually install the multiplexers into a repository 
+ If you choose to not use the template configuration, you can still install `git-hooks` support manually on a per-repostory basis.  
+```
     cd <to your repo>
     git hooks install
-
-```
-
-#### Configure git to automatically install the multiplexers for all new repos (cloned or init'ed)
-
-This will make it so that you never have to run `git hooks install` again for this machine.
-This is useful when your repositories already have a `.githooks` directory with hook
-scripts in it or if you plan to make regular use of the `git hooks` functionality in other
-or future repositonies.
-```
-
-    git hooks install-template
 
 ```
 
@@ -121,7 +71,7 @@ or future repositonies.
     or: git hooks parallel <git hook> [<num>]
     or: git hooks show-input <git hook> [true|false]
     or: git hooks config 
-    or: git hooks help [--markdown]
+    or: git hooks help [-m|--markdown]
 
 ## Common Arguments:
     <path>...
@@ -259,7 +209,7 @@ or future repositonies.
         Configures this repository to be able to reference git hooks hosted
         in a remote locatior (currently only supports git repositories).
     
-            [-g|--global]:      The collection will be considered available to all repos
+        [-g|--global]:      The collection will be considered available to all repos
         <collection name>:  The internal name for the collection. Must be unique
                             within this repository.
     
@@ -307,40 +257,29 @@ or future repositonies.
     config 
         Simply lists all hooks-related git config settings.
 
-    help [--markdown]
+    help [-m|--markdown]
         Displays this help message.
     
         If --markdown is specified, the help message will be generated with
         additional markdown syntax for headings and code blocks.
 
 ## Writing custom git hook scripts:
-
-Once `git-hooks install` has been called for your repository, creating and
-installing your own hooks is a simple matter of placing them in the newly-
-created `.githooks` directory. Your hooks must follow a particular naming
-convention:
+ Creating and installing your own hooks is a simple matter of placing them in your repository's `.githooks` directory. If you only have one or two hook scripts, you can use the `<standard git hook name>-<custom suffix>` naming convention. If you desire a little more organizational structure, you can create subdirectories in the `.githooks` directory corresponding to the standard git hook names and place your scripts within those. For example:  
+```
+    <your repo>/
+        .githooks/
+            commit-msg/
+                format-check
+            pre-commit/
+                style-check
+                unit-tests
 
 ```
-       <standard git hook name>-<custom suffix>
-```
-
-When a git hook is invoked it will look for your hooks scripts with the
-corresponding prefix and call them according to your config. By default
-your scripts will be run sequentially in alphabetical order as they appear
-in the `.githooks` directory.
-
-Setting the parallel option (see above) will cause all scripts to be run
-concurrently without regard to their conventional order.
+ When a git hook is invoked it will look for your hooks scripts with the corresponding prefix and call them according to your config. By default your scripts will be run sequentially in alphabetical order as they appear in the `.githooks` directory.  Setting the parallel option (see above) will cause all scripts to be run concurrently without regard to their conventional order.  
 
 ###    Preventing parallel execution:
-
-If your script cannot be run in parallel with another of the same
-git hook family, you may enforce this by calling the exported function
-`prevent-parallel` from within your script.
-
-Example:
+ If your script cannot be run in parallel with another of the same git hook family, you may enforce this by calling the exported function `prevent-parallel` from within your script.  Example:  
 ```
-
         #!/usr/bin/env bash
         prevent-parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
