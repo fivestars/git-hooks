@@ -11,6 +11,10 @@ issue id from the branch name, or failing that, prompt the user to manually ente
 the issue id. It then applies that issue id to the commit message, substituting
 all '\$JIRA' instances with the issue id prior to prompting the user to edit the
 commit message.
+
+It will also attempt to pre-populate the message with the Jira ticket's summary
+and description if the '\$JIRA_SUMMARY' and/or '\$JIRA_DESC' placeholder strings are
+in the commit message.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
@@ -21,7 +25,7 @@ HELP
 is_cached_commit_message_in_use && exit
 
 # Look for commit messages that could use a Jira ticket substitution
-if grep -q "\$JIRA" "$1"; then
+if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
 
     # Get our Jira issue id and substitute it for $JIRA in the received commit message
     if branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); then
@@ -30,8 +34,53 @@ if grep -q "\$JIRA" "$1"; then
         jira_ticket=$(jira_get_ticket)
     fi
 
-    printf "${c_action}%s ${c_value}%s ${c_action}%s${c_reset}\\n" "Applying Jira ticket" "$jira_ticket" "to commit message"
     tmpfile=$(mktemp -t git-commit-msg-template.XXXX); trap 'rm -f $tmpfile' EXIT
+
+    printf "${c_action}%s ${c_value}%s ${c_action}%s${c_reset}\\n" "Applying Jira ticket" "$jira_ticket" "to commit message"
     JIRA="$jira_ticket" envsubst "\$JIRA" <"$1" >"$tmpfile"
-    mv "$tmpfile" "$1"
+    cp "$tmpfile" "$1"
+
+    # If placeholders found in the message, attempt to import the Jira ticket content
+    if grep -q "\$JIRA_SUMMARY\\|\$JIRA_DESC\\|\${JIRA_SUMMARY}\\|\${JIRA_DESC}" "$1"; then
+
+        # Look for commits with a message provided by -m at command-line. This means git
+        # will not prompt us to further edit the message and we should just clear the
+        # placeholders.
+        case "${2:-}" in
+            message)
+                JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+                cp "$tmpfile" "$1"
+                exit
+                ;;
+
+            *) ;;
+        esac
+
+        # Also, don't bother if the previous commit already has info for the current issue.
+        # Just remove the placeholders.
+        if git log -n 1 --no-merges --first-parent | grep -q "\\[$jira_ticket\\]" &>/dev/null; then
+            JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+            exit
+        fi
+
+        # Get the ticket info from the Jira api
+        if jira_issue="$(jira_get_issue "$jira_ticket")"; then
+            jira_summary="$(jq -r .fields.summary <<<"${jira_issue}")"
+            jira_description="$(jq -r .fields.description <<<"${jira_issue}" | fold -sw 100)"
+
+            # Populate the summary and description with the values pulled from the Jira ticket
+            printf "${c_action}%s ${c_value}%s${c_reset}\\n" "Populating commit message from ticket" "$jira_ticket"
+            JIRA_SUMMARY="${jira_summary:-}" JIRA_DESC="${jira_description:-}" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+
+            # Replace Jira markup for monospace with markdown
+            sed -e 's/{{/`/g' -e 's/}}/`/g' "$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+        else
+            printf "${c_error}%s${c_reset}\\n" "Failed to lookup Jira ticket, cannot auto-populate message"
+            JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+        fi
+    fi
 fi

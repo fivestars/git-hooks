@@ -91,7 +91,10 @@ read -r capture_outfile infile hook_name hook_path <<<"$1"
 shift
 
 # Redirect $infile to stdin if our hook expects inbound input
-[[ "$HOOK" == post-rewrite ]] && exec 10<&0 0<$infile || exec 10>&0 0</dev/tty
+case "$HOOK" in
+    post-rewrite|pre-push)  exec 10<&0 0<$infile ;;
+    *)                      exec 10>&0 0</dev/tty ;;
+esac
 
 # Report which hook is running
 printf "${c_action}%s${c_reset}\\n" "[running ${HOOK}/${hook_name#*${HOOK}}]"
