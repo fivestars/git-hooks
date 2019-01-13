@@ -66,6 +66,8 @@ A tool for managing and invoking custom git hook scripts.
     or: git hooks install-template 
     or: git hooks uninstall-template 
     or: git hooks add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
+    or: git hooks list-collections [-g|--global]
+    or: git hooks sync-collection [-g|--global] <collection name>
     or: git hooks include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
@@ -209,13 +211,29 @@ A tool for managing and invoking custom git hook scripts.
         Configures this repository to be able to reference git hooks hosted
         in a remote locatior (currently only supports git repositories).
     
-        [-g|--global]:      The collection will be considered available to all repos
+        [-g|--global]:      The collection will be considered available to all repos.
         <collection name>:  The internal name for the collection. Must be unique
-                            within this repository.
+                            within this repository or if global, within all global
+                            collections.
     
         <clone url>:        The collection's remote url.
     
         <subpath to hooks>: The collection-relative path to the hook directories.
+
+    list-collections [-g|--global]
+        List the collections configured for the indicated scope.
+    
+        [-g|--global]:      List collections configured at the global scope. If not
+                            specified, this will list collections configured for
+                            the current repository.
+
+    sync-collection [-g|--global] <collection name>
+        Pull the latest updates for the indicated collection. This will happen
+        automatically periodically, but this command is for situations where
+        you don't want to wait for that automatic update to occur.
+    
+        [-g|--global]:      The collection will be considered available to all repos.
+        <collection name>:  The internal name for the collection to be updated.
 
     include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
         Link an existing script from a collection into this repository.
