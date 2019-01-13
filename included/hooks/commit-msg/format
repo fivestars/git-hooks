@@ -2,7 +2,10 @@
 set -eu -o pipefail
 
 : <<DESC
-Validate the format of a commit message
+Validate the format of a commit message.
+
+One can specify the git config value "hooks.format.long-line-regex" to provide
+a regex for lines to be omitted from the message body line-length check.
 DESC
 
 # Get our useful functions (be sure to provide lib path as source argument)
@@ -96,7 +99,8 @@ esac
 
 # Check message body line length
 message_line_len=100
-if [[ $(awk '{print length}' "$commit_msg" | sort -nr | head -n 1) -gt "$message_line_len" ]]; then
+long_line_regex="$(git config --get hooks.format.long-line-regex)" ||:
+if [[ $(grep -vE "${long_line_regex:-^\$}" "$commit_msg" | awk '{print length}' | sort -nr | head -n 1) -gt "$message_line_len" ]]; then
     printf "${c_error}%s${c_reset}\\n" "Commit message contains lines longer than $message_line_len characters"
     printf "${c_error}%s${c_reset}\\n" "========================================================================"
     while read -r line; do
