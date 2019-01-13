@@ -94,7 +94,54 @@ function git_hooks__ensure_gnu_getopt {
     set -e
 }
 
+function git_hooks__sync_collection {
+    git_hooks__ensure_gnu_getopt
+
+    local hooks_dir="$githooks_dir"
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
+    local c_name="$1" c_type c_location c_path c_config_file
+
+    # Ensure we know about the collection
+    git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
+    c_type=$(git config -f "$git_hooks_config" --get "collection.${c_name}.type")
+    c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
+
+    mkdir -p "$collections_path"
+    case "$c_type" in
+        git)
+            c_path="${collections_path}/${c_name}"
+            c_config_file="${c_path}/.git/config"
+
+            if [[ -f "$c_config_file" ]]; then
+                if git_hooks__update_needed "$c_config_file"; then
+                    git_hooks__mark_attempted "$c_config_file"
+                    pushd "$c_path" &>/dev/null
+                    git pull &>/dev/null
+                    popd &>/dev/null
+                    git_hooks__mark_updated "$c_config_file"
+                fi
+            else
+                git clone "$c_location" "$c_path"
+            fi
+            ;;
+
+        *)
+            ;;
+    esac
+}
+
 function git_hooks__ensure_collection {
+    git_hooks__ensure_gnu_getopt
+
     local hooks_dir="$githooks_dir"
 
     eval set -- "$($getopt -o g --long "global" -- "$@")"
@@ -354,10 +401,6 @@ $(md '##') Configuration:
 
     git-hooks.color [default=true]
         Use colorized output.
-
-    git-hooks.last-check
-        Internal use only.
-        Records the last time the update check was performed.
 
 $(md '##') Operations:
 $(git_hooks__extract_help)
@@ -625,47 +668,6 @@ function git_hooks_add_collection {
     if [[ -n "$c_subpath" ]]; then
         git config -f "$git_hooks_config" "collection.${c_name}.subpath" "$c_subpath"
     fi
-}
-
-
-
-
-function git_hooks__sync_collection {
-    git_hooks__ensure_gnu_getopt
-
-    local hooks_dir="$githooks_dir"
-    eval set -- "$($getopt -o g --long "global" -- "$@")"
-    while [[ $1 != -- ]]; do
-        case $1 in
-            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
-        esac
-    done
-    shift
-
-    local git_hooks_config="${hooks_dir}/config"
-    local collections_path="${hooks_dir}/.collections"
-    local c_name="$1" c_type c_location
-
-    # Ensure we know about the collection
-    git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
-    c_type=$(git config -f "$git_hooks_config" --get "collection.${c_name}.type")
-    c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
-
-    mkdir -p "$collections_path"
-    case "$c_type" in
-        git)
-            if [[ -d "${collections_path}/${c_name}" ]]; then
-                pushd "${collections_path}/${c_name}" &>/dev/null
-                git pull &>/dev/null
-                popd &>/dev/null
-            else
-                git clone "$c_location" "${collections_path}/${c_name}"
-            fi
-            ;;
-
-        *)
-            ;;
-    esac
 }
 
 
@@ -1196,7 +1198,7 @@ function git_hooks_include {
     git config -f "$git_hooks_config" --get collection.names "$c_name" &>/dev/null
     c_location=$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")
 
-    git_hooks__sync_collection "$global" "$c_name"
+    git_hooks__sync_collection "$global" "$c_name" ||:
     git_hooks__ensure_collection "$global" "$c_name"
 
     # Check the collection repo first, then allow overrides from local repo
@@ -1231,9 +1233,29 @@ function git_hooks_include {
 
 
 
+
+function git_hooks__update_needed {
+    local config_file="$1" last_attempted last_updated
+
+    last_attempted="$(git config -f "$config_file" git-hooks.last-attempted 2>/dev/null)" || last_attempted=0
+    last_updated="$(git config -f "$config_file" git-hooks.last-updated 2>/dev/null)" || last_updated=0
+
+    (( "$(date -v "-7d" "+%s" 2>/dev/null || date -d "last week" "+%s")" > last_updated ))
+    (( "$(date -v "-1d" "+%s" 2>/dev/null || date -d "yesterday" "+%s")" > last_attempted ))
+}
+
+function git_hooks__mark_attempted {
+    local config_file="$1"
+    git config -f "$config_file" git-hooks.last-attempted "$(date "+%s")"
+}
+
+function git_hooks__mark_updated {
+    local config_file="$1"
+    git config -f "$config_file" git-hooks.last-updated "$(date "+%s")"
+}
+
 function git_hooks__check_for_updates {
-    last_check="$(git config --global git-hooks.last-check 2>/dev/null)" || last_check=0
-    if (( "$(date -v "-7d" "+%s" 2>/dev/null || date -d "last week" "+%s")" > last_check )); then
+    if git_hooks__update_needed; then
         (
             cd "$bash_source_dir";
             git fetch &>/dev/null;
@@ -1243,7 +1265,6 @@ function git_hooks__check_for_updates {
                     "git-hooks is" "$behind" "commits behind. Consider pulling latest code."
             fi
         )
-        git config --global git-hooks.last-check "$(date "+%s")"
     fi
 }
 
@@ -1333,7 +1354,7 @@ function git_hooks__run_referenced_hook {
     fi
 
     # Retrieve/update the collection referenced in this config
-    git_hooks__sync_collection "$c_global" "$c_name"
+    git_hooks__sync_collection "$c_global" "$c_name" ||:
     git_hooks__ensure_collection "$c_global" "$c_name"
 
     "${hooks_dir}/.collections/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
