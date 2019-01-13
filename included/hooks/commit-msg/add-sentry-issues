@@ -29,16 +29,23 @@ fi
 
 
 function get_sentry_issue_link {
+    # Extracts the sentry issue link from a Jira ticket's description content
     jq -r '.fields.description' \
         | head -n 1 \
         | grep -E "https://sentry.io/.+/issues/[0-9]+"
 }
 
 function get_sentry_issue_id {
-     sed -E 's|^.*/issues/([0-9]+)/$|\1|'
+    # Extracts the sentry issue id from the previously extracted sentry issue link
+    sed -E 's|^.*/issues/([0-9]+)/.*$|\1|'
 }
 
-found_sentry_issue=false
+# Clear any existing Sentry issue links (and anything below them)
+tmpfile=$(mktemp -t sentry-issues.XXXX); trap 'rm -f $tmpfile' EXIT
+sed '/Resolved Sentry Issues/,$d' "$commit_msg" > "$tmpfile"
+cp "$tmpfile" "$commit_msg"
+
+found_sentry_issues=false
 
 for jira_issue in $(grep -E "^(\\[)?[A-Z]+-[0-9]+(\\])?" "$commit_msg" | sed -E 's/^[^A-Z]*([A-Z]+-[0-9]+).*$/\1/' | xargs -n 1 | sort | uniq); do
     sentry_issue_link="$(jira_get_issue "$jira_issue" | get_sentry_issue_link)" || sentry_issue_link=""
@@ -46,14 +53,14 @@ for jira_issue in $(grep -E "^(\\[)?[A-Z]+-[0-9]+(\\])?" "$commit_msg" | sed -E 
     sentry_issue_short_id="$(sentry_get_issue_short_id "$sentry_issue_id")" || sentry_issue_short_id=""
 
     if [[ -n "$sentry_issue_short_id" ]]; then
-        if ! "$found_sentry_issue"; then
-            found_sentry_issue=true
-            {
-                echo
-                echo "**Sentry issues**"
-            } >> "$commit_msg"
-        fi
+        if ! $found_sentry_issues; then
+            found_sentry_issues=true
+            cat >>"$commit_msg" <<-EOF
 
-        echo >> "$commit_msg" "Fixes ${sentry_issue_short_id} [(link)](${sentry_issue_link})"
+			Resolved Sentry Issues
+			----------------------
+			EOF
+        fi
+        echo >>"$commit_msg" "Fixes ${sentry_issue_short_id} [(sentry)](${sentry_issue_link}) [(jira)]($(jira_get_issue_url "${jira_issue}"))"
     fi
 done

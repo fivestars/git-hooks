@@ -252,6 +252,14 @@ function jira_get_issue {
         "https://$(git config jira.hostname)/rest/api/2/issue/$issue_id"
 }
 
+function jira_get_issue_url {
+    local issue_id="$1"
+
+    jira_ensure_access >&2
+
+    echo "https://$(git config jira.hostname)/browse/${issue_id}"
+}
+
 function jira_get_jq_property () {
     # Receives a json body and outputs the JSON data for the given key
     #
