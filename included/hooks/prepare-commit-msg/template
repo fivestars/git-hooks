@@ -33,15 +33,15 @@ else
     if [[ ! -f .gitmessage ]]; then
         printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n\\n" "No " "$(basename "$(git rev-parse --show-toplevel)")/.gitmessage" " template file found"
         printf "${c_action}%s${c_reset}\\n" "Recommended template file:"
-        read -r -d '' template <<-'EOF' ||:
-			[$JIRA]
+        read -r -d '' template <<-EOF ||:
+			[\$JIRA]
 			# Subject: Description in the imperative voice
 
 
 			# Summary: A paragraph or two explaining the reason for the change and a
 			#          high level explanation of what the changes do.
 
-			[$JIRA](https://fivestars.atlassian.net/browse/$JIRA)
+			[\$JIRA]($(jira_get_issue_url "\$JIRA"))
 		EOF
 
         printf "%s\\n\\n" "$template"
