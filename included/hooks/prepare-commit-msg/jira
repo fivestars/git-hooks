@@ -56,9 +56,9 @@ if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
             *) ;;
         esac
 
-        # Also, don't bother if previous commit already has info for the current issue.
+        # Also, don't bother if the previous commit already has info for the current issue.
         # Just remove the placeholders.
-        if git log -n 1 | grep -q "\\[$jira_ticket\\]" &>/dev/null; then
+        if git log -n 1 --no-merges --first-parent | grep -q "\\[$jira_ticket\\]" &>/dev/null; then
             JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
             cp "$tmpfile" "$1"
             exit
@@ -69,8 +69,13 @@ if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
             jira_summary="$(jq -r .fields.summary <<<"${jira_issue}")"
             jira_description="$(jq -r .fields.description <<<"${jira_issue}" | fold -sw 100)"
 
+            # Populate the summary and description with the values pulled from the Jira ticket
             printf "${c_action}%s ${c_value}%s${c_reset}\\n" "Populating commit message from ticket" "$jira_ticket"
             JIRA_SUMMARY="${jira_summary:-}" JIRA_DESC="${jira_description:-}" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+
+            # Replace Jira markup for monospace with markdown
+            sed -e 's/{{/`/g' -e 's/}}/`/g' "$1" >"$tmpfile"
             cp "$tmpfile" "$1"
         else
             printf "${c_error}%s${c_reset}\\n" "Failed to lookup Jira ticket, cannot auto-populate message"
