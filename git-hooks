@@ -97,11 +97,12 @@ function git_hooks__ensure_gnu_getopt {
 function git_hooks__sync_collection {
     git_hooks__ensure_gnu_getopt
 
-    local hooks_dir="$githooks_dir"
-    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    local hooks_dir="$githooks_dir" force=false
+    eval set -- "$($getopt -o gf --long "global, force" -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+            -f|--force) force=true; shift;;
         esac
     done
     shift
@@ -122,10 +123,10 @@ function git_hooks__sync_collection {
             c_config_file="${c_path}/.git/config"
 
             if [[ -f "$c_config_file" ]]; then
-                if git_hooks__update_needed "$c_config_file"; then
+                if "$force" || git_hooks__update_needed "$c_config_file"; then
                     git_hooks__mark_attempted "$c_config_file"
                     pushd "$c_path" &>/dev/null
-                    git pull &>/dev/null
+                    git pull >/dev/null
                     popd &>/dev/null
                     git_hooks__mark_updated "$c_config_file"
                 fi
@@ -342,6 +343,8 @@ $(md '##') Usage:
     or: git hooks $(git_hooks__extract_desc install-template)
     or: git hooks $(git_hooks__extract_desc uninstall-template)
     or: git hooks $(git_hooks__extract_desc add-collection)
+    or: git hooks $(git_hooks__extract_desc list-collections)
+    or: git hooks $(git_hooks__extract_desc sync-collection)
     or: git hooks $(git_hooks__extract_desc include)
     or: git hooks $(git_hooks__extract_desc check-support)
     or: git hooks $(git_hooks__extract_desc parallel)
@@ -634,9 +637,10 @@ function git_hooks_add_collection {
 	    Configures this repository to be able to reference git hooks hosted
 	    in a remote locatior (currently only supports git repositories).
 
-	    [-g|--global]:      The collection will be considered available to all repos
+	    [-g|--global]:      The collection will be considered available to all repos.
 	    <collection name>:  The internal name for the collection. Must be unique
-	                        within this repository.
+	                        within this repository or if global, within all global
+	                        collections.
 
 	    <clone url>:        The collection's remote url.
 
@@ -674,6 +678,69 @@ function git_hooks_add_collection {
 
 
 
+function git_hooks_list_collections {
+    : <<-ARGS
+	    [-g|--global]
+	ARGS
+    : <<-HELP
+	    List the collections configured for the indicated scope.
+
+	    [-g|--global]:      List collections configured at the global scope. If not
+	                        specified, this will list collections configured for
+	                        the current repository.
+	HELP
+    local hooks_dir="$githooks_dir"
+
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
+    local c_name c_location c_path
+
+    if [[ -d "$hooks_dir" ]]; then
+        for c_name in $(git config -f "$git_hooks_config" --get-all collection.names); do
+            c_location="$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")"
+            c_path="${collections_path}/${c_name}"
+            cat <<-EOF
+			${c_name}
+			------------------
+			Path:   ${c_path}
+			Source: ${c_location}
+
+			EOF
+        done
+    fi
+}
+
+
+
+
+
+function git_hooks_sync_collection {
+    : <<-ARGS
+	    [-g|--global] <collection name>
+	ARGS
+    : <<-HELP
+	    Pull the latest updates for the indicated collection. This will happen
+	    automatically periodically, but this command is for situations where
+	    you don't want to wait for that automatic update to occur.
+
+	    [-g|--global]:      The collection will be considered available to all repos.
+	    <collection name>:  The internal name for the collection to be updated.
+	HELP
+    git_hooks__sync_collection --force "$@"
+}
+
+
+
+
+
 function git_hooks_uninstall {
     : <<-HELP
 	    Removes the multiplexer hooks from the .git/hooks directory.
@@ -686,6 +753,7 @@ function git_hooks_uninstall {
         fi
     done
 }
+
 
 
 
@@ -1309,7 +1377,7 @@ function git_hooks__main {
             ;;
 
         # No special requirements
-        add-collection|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
+        add-collection|list-collections|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
             ;;
 
         *)  printf >&2 "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "git-hooks:" "$git_hooks_command" "is not a git-hooks command." >&2
