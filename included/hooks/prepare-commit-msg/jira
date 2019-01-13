@@ -14,7 +14,9 @@ commit message.
 
 It will also attempt to pre-populate the message with the Jira ticket's summary
 and description if the '\$JIRA_SUMMARY' and/or '\$JIRA_DESC' placeholder strings are
-in the commit message.
+in the commit message template.
+
+See .gitmessage.sample for example usage.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)

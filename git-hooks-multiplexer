@@ -107,7 +107,7 @@ export -f prevent-parallel
 
 # Display input if requested
 if git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
-    echo "[$# args to ${hook_name} ${*:1}]"
+    echo "[$# args to ${hook_name}] ${*:1}"
     echo "[input to ${hook_name}]"
     cat "$infile"  # | sed "s|^|$(basename "${hook_name}")(in)  \||g"
 fi

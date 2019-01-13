@@ -13,6 +13,8 @@ any '\$SUBJECT' placeholders in the template with the provided "<message>".
 
 If the template is not provided, or the template does not contain any
 '\$SUBJECT' placeholders, this hook will have no effect.
+
+See .gitmessage.sample for example usage.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
