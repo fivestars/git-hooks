@@ -5,6 +5,7 @@
 
 # Themed colors - export these in your shell to override
 c_good="${c_good:-${green}}"
+c_warning="${c_warning:-${b_red}}"
 c_error="${c_error:-${red}}"
 c_prompt="${c_prompt:-${b_cyan}}"
 c_action="${c_action:-${cyan}}"

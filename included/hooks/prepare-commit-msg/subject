@@ -24,10 +24,12 @@ HELP
 # No need to do anything if we're using a previously rejected commit message
 is_cached_commit_message_in_use && exit
 
+# Decide how to proceed based on the commit type
 case "${2:-}" in
     # Look for commits with a message provided by -m at command-line.
     # This means git will not prompt us to further edit the message.
     message)
+        # Don't bother if this is a cherry-pick
         [[ -f .git/CHERRY_PICK_HEAD ]] && exit
 
         # We will need to manually apply the template, so let's verify that it exists
@@ -58,7 +60,20 @@ case "${2:-}" in
         mv "$tmpfile" "$1"
         ;;
 
-    # Unhandled commit types
-    *) exit 0
-        ;;
+    ## Unhandled commit types:
+    # This is a merge commit message
+    merge) printf "${c_action}%s${c_reset}\\n" "Merge commit message provided, nothing to be done"
+           exit 0 ;;
+
+    # This commit is being squashed, most likely during a rebase
+    squash) printf "${c_action}%s${c_reset}\\n" "Squashing commit message, nothing to be done"
+            exit 0 ;;
+
+    # The commit message contents are already complete
+    commit) printf "${c_action}%s${c_reset}\\n" "Using existing commit message, nothing to be done"
+            exit 0 ;;
+
+    # Unexpected commit message type
+    *)  printf "${c_warning}%s${c_value}%s${c_warning}%s${c_reset}\\n" "Unexpected commit message type " "${2:-}" ", skipping hook:"
+        exit 0 ;;
 esac
