@@ -16,12 +16,35 @@ HELP
 
 clear_cached_commit_message_in_use
 
+# Decide how to proceed based on the commit type
 case "${2:-}" in
-    # Normal commit
-    ""|template) ;;
 
-    # Unhandled commit types
-    *) exit 0 ;;
+    # Debugging (git hooks run prepare-commit-msg...)
+    "") ;;
+
+    # Normal commit without message content yet; the editor will be opened
+    template) ;;
+
+    ## Unhandled commit types:
+    # Message was provided via -m or -F
+    message) printf "${c_action}%s${c_reset}\\n" "Commit message provided already, nothing to be done"
+             exit 0 ;;
+
+    # This is a merge commit message
+    merge) printf "${c_action}%s${c_reset}\\n" "Merge commit message provided, nothing to be done"
+           exit 0 ;;
+
+    # This commit is being squashed, most likely during a rebase
+    squash) printf "${c_action}%s${c_reset}\\n" "Squashing commit message, nothing to be done"
+            exit 0 ;;
+
+    # The commit message contents are already complete
+    commit) printf "${c_action}%s${c_reset}\\n" "Using existing commit message, nothing to be done"
+            exit 0 ;;
+
+    # Unexpected commit message type
+    *)  printf "${c_warning}%s${c_value}%s${c_warning}%s${c_reset}\\n" "Unexpected commit message type " "${2:-}" ", skipping hook:"
+        exit 0 ;;
 esac
 
 tmp_msg_filename="$(get_cached_commit_message_filename)"
