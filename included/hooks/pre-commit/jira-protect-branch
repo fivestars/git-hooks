@@ -15,13 +15,19 @@ HELP
 # shellcheck source=included/lib/jira.sh
 . "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
-branch=$(git rev-parse --abbrev-ref HEAD)
+branch=$(git symbolic-ref --short HEAD)
 
 if is_protected_branch "$branch"; then
     printf "${c_prompt}%s${c_reset}" "Do you really want to commit directly to protected branch \"$branch\"? ([y]es/[n]o): "
     read -r response
     case $response in
         yes|y)  ;;
-        *)      move_to_branch "$(jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)")" ;;
+        *)
+            if [[ "${branch}" == "master" ]] && ! git rev-parse --verify --quiet master; then
+                # This appears to be a brand new repository and we're commiting our first commit.
+                # Go ahead and create the branch so we can have a base for our new feature branch.
+                git checkout -b master &>/dev/null
+            fi
+            move_to_branch "$(jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)")" ;;
     esac
 fi

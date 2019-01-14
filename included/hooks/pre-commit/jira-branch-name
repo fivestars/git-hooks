@@ -19,7 +19,7 @@ HELP
 # shellcheck source=included/lib/jira.sh
 . "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
-branch=$(git rev-parse --abbrev-ref HEAD)
+branch=$(git symbolic-ref --short HEAD)
 if (( $# )); then
     move_to_branch "$(jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)")"
 elif ! is_protected_branch "$branch"; then
