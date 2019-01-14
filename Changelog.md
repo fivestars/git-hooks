@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 -
+*Date:* 2019-01-14
+
+*Tags:*  `v1.1.1`
+
+### Fixes
+- Fixed some issues in the Jira hooks that prevented the initial commit in a new repository
+
 ## 1.1.0 - Global hooks support and better Jira/Sentry integration
 *Date:* 2019-01-13
 
