@@ -62,7 +62,7 @@ esac
 if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
 
     # Get our Jira issue id and substitute it for $JIRA in the received commit message
-    if branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); then
+    if branch=$(git symbolic-ref --short HEAD 2>/dev/null); then
         jira_ticket=$(jira_get_ticket_from_branch_name "$branch" || jira_get_ticket)
     else
         jira_ticket=$(jira_get_ticket)
@@ -92,7 +92,7 @@ if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
 
         # Also, don't bother if the previous commit already has info for the current issue.
         # Just remove the placeholders.
-        if git log -n 1 --no-merges --first-parent | grep -q "\\[$jira_ticket\\]" &>/dev/null; then
+        if git log -n 1 --no-merges --first-parent 2>/dev/null | grep -q "\\[$jira_ticket\\]"; then
             JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
             cp "$tmpfile" "$1"
             exit

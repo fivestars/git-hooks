@@ -2,21 +2,27 @@
 A tool for managing and invoking custom git hook scripts.
 
 ## Description:
- git-hooks is a tool to facilitate git hook management, specifically being able to store your hooks under source control within the repository itself and simply reference them from a multiplexer hook installed in the `.git/hooks` directory.  The expected usage is to write an arbitrary number of individual hook scripts associated with a single standard git hook and store them in the `.githooks` directory. When git invokes the multiplexer script in `.git/hooks`, it will call your custom scripts sequentially, or in parallel if you configure it to do so.  This way you can break your monolithic hooks into individual files, giving you greater flexibility regarding which pieces to run and when.  
+ **git-hooks** is a tool to facilitate git hook management, specifically being able to store your hooks under source control within the repository itself and simply reference them from a multiplexer hook installed in the `.git/hooks` directory.  
+
+ The expected usage is to write an arbitrary number of individual hook scripts associated with a single standard git hook and store them in the `.githooks` directory. When git invokes the multiplexer script in `.git/hooks`, it will call your custom scripts sequentially, or in parallel if you configure it to do so.  
+
+ This way you can break your monolithic hooks into individual files, giving you greater flexibility regarding which pieces to run and when.  
 
 ## Features:
 
 ### Run your hooks directly:
- git-hooks allows you to invoke your hook scripts without being triggered by a git action. This is useful for speeding up the process of debugging issues that caused your hooks to fail in the first place. If you write your hook scripts well, you can even pass extra arguments to your scripts that wouldn't be present when being run from a git trigger. (eg. specifying a particular unit test to speed up debugging).  
+ **git-hooks** allows you to invoke your hook scripts without being triggered by a git action. This is useful for speeding up the process of debugging issues that caused your hooks to fail in the first place. If you write your hook scripts well, you can even pass extra arguments to your scripts that wouldn't be present when being run from a git trigger. (eg. specifying a particular unit test to speed up debugging).  
 
 ### Disable/enable particular hooks or hook scripts:
- git-hooks gives you the ability to disable hooks down to the individual script level. So if something is preventing a particular script from succeeding and can be temporarily ignored, you can just disable that one and the other scripts for that trigger will still apply. This is much better than `--no-verify`.  
+ **git-hooks** gives you the ability to disable hooks down to the individual script level. So if something is preventing a particular script from succeeding and can be temporarily ignored, you can just disable that one and the other scripts for that trigger will still apply. This is much better than `--no-verify`.  
 
 ### Hook repositories:
- Rather than copying and pasting the same hook code into each of your repositories, you can create a shared collection of hooks (as a git repo) and simply reference those from within your repository. This way, as your hook functionality evolves, you only need to push the code to the collection's repo, and git-hooks will ensure that you pull down the latest.  
+ Rather than copying and pasting the same hook code into each of your repositories, you can create a shared collection of hooks (as a git repo) and simply reference those from within your repository. This way, as your hook functionality evolves, you only need to push the code to the collection's repo, and **git-hooks** will ensure that you pull down the latest.  
 
 ### Global hooks:
- You can have global hooks on your machine. These will be run for any repository that has git-hooks installed (ie. has the multiplexer scripts in its `.git/hooks` dir. See **Installation** below). This is useful for applying consistent, project-agnostic rules across all of your projects (such as commit message format/structure). These hooks can be literal script files or reference hooks, but they will not be checked into the source control of the repositories that they will affect. They will appear and run alongside the repo's own hooks.  Global hooks will be enabled by default for all repos with git-hooks installed. If you wish to prevent the global git hooks from running for a repostiory, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
+ You can have global hooks on your machine. These will be run for any repository that has **git-hooks** installed (ie. has the multiplexer scripts in its `.git/hooks` dir. See **Installation** below). This is useful for applying consistent, project-agnostic rules across all of your projects (such as commit message format/structure). These hooks can be literal script files or reference hooks, but they will not be checked into the source control of the repositories that they will affect. They will appear and run alongside the repo's own hooks.  
+
+ Global hooks will be enabled by default for all repos with **git-hooks** installed. If you wish to prevent the global git hooks from running for a repostiory, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
 
 ## Installation:
 
@@ -190,10 +196,10 @@ A tool for managing and invoking custom git hook scripts.
         Removes the multiplexer hooks from the .git/hooks directory.
 
     install-command 
-        Creates a symlink to 'git-hooks' in /usr/local/bin
+        Creates a symlink to git-hooks in /usr/local/bin
 
     uninstall-command 
-        Removes the symlink to 'git-hooks' in /usr/local/bin, if present.
+        Removes the symlink to git-hooks in /usr/local/bin, if present.
 
     install-template 
         Installs the multiplexer scripts into ~/.gittemplate/hooks (or

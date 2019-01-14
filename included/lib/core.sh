@@ -75,16 +75,16 @@ function move_to_branch () {
     # Stderr: <none>
     local response branch new_branch="$1"
 
-    branch="$(git rev-parse --abbrev-ref HEAD)"
+    branch="$(git symbolic-ref --short HEAD)"
 
     if [[ "$new_branch" != "$branch" ]]; then
         printf "\\n${c_action}%s ${c_value}%s${c_reset}\\n" "Moving to new branch:" "$new_branch"
 
         # This will succeed but return error code 1 during a commit, hence the ||:
-        git checkout -b "$new_branch" ||:
+        git checkout -b "$new_branch" | grep -v "Switched to a new branch" ||:
 
         # Only continue if we created and checked out the new branch
-        [[ "$(git rev-parse --abbrev-ref HEAD)" == "$new_branch" ]]
+        [[ "$(git symbolic-ref --short HEAD)" == "$new_branch" ]]
 
         # Clean up old branch?
         if ! is_protected_branch "$branch"; then
@@ -102,8 +102,8 @@ function move_to_branch () {
 function get_cached_commit_message_filename {
     local commit="${1:-HEAD}"
     local repo="$(basename "$(git rev-parse --show-toplevel)")"
-    local branch="$(git rev-parse --abbrev-ref "$commit")"
-    local hash="$(git rev-parse --short "$commit" 2>/dev/null ||:)"
+    local branch="$(git rev-parse --abbrev-ref "$commit" 2>/dev/null)"
+    local hash="$(git rev-parse --short "$commit" 2>/dev/null)"
 
     echo "/tmp/git-commit-msg-${repo}-${branch}-${hash}"
 }
