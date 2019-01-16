@@ -23,7 +23,7 @@ if is_protected_branch "$branch"; then
     case $response in
         yes|y)  ;;
         *)
-            if [[ "${branch}" == "master" ]] && ! git rev-parse --verify --quiet master; then
+            if [[ "${branch}" == "master" ]] && ! git rev-parse --verify --quiet master &>/dev/null; then
                 # This appears to be a brand new repository and we're commiting our first commit.
                 # Go ahead and create the branch so we can have a base for our new feature branch.
                 git checkout -b master &>/dev/null
