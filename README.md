@@ -59,6 +59,9 @@ A tool for managing and invoking custom git hook scripts.
 
 ```
 
+## Updates:
+ **git-hooks** will periodically check for updates to the core tool and any added collections. You can manually check for updates with the `update` and `sync-collection` commands.  
+
 ## Usage:
         git hooks  # equivalent to list
     or: git hooks list [<git hook>...]
@@ -249,11 +252,11 @@ A tool for managing and invoking custom git hook scripts.
         <git hook>. Just provide a numeric prefix on the <new name> to indicate
         the script's place in the running order.
     
-            Specify '--global' if you want to reference a hook in a global collection.
-            Using this, it's possible to take advantage of project-agnostic hooks without
-            even placing them (or references to them) under your project's source control.
-            Bear in mind that some hooks will place files under the project's source
-            control as a side-effect of their behavior. This is to be expected.
+        Specify '--global' if you want to reference a hook in a global collection.
+        Using this, it's possible to take advantage of project-agnostic hooks without
+        even placing them (or references to them) under your project's source control.
+        Bear in mind that some hooks will place files under the project's source
+        control as a side-effect of their behavior. This is to be expected.
 
     check-support 
         Checks for differences in the list of hooks supported by
