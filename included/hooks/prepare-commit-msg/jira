@@ -35,11 +35,10 @@ case "${2:-}" in
     # Normal commit without message content yet; the editor will be opened
     template) ;;
 
-    ## Unhandled commit types:
     # Message was provided via -m or -F
-    message) printf "${c_action}%s${c_reset}\\n" "Commit message provided already, nothing to be done"
-             exit 0 ;;
+    message) ;;
 
+    ## Unhandled commit types:
     # This is a merge commit message
     merge) printf "${c_action}%s${c_reset}\\n" "Merge commit message provided, nothing to be done"
            exit 0 ;;
