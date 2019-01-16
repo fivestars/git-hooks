@@ -19,12 +19,14 @@ bash_source="${bash_source_dir}/${bash_source##*/}"
 color="$(git config --bool git-hooks.color)" || color=true
 if "$color" &>/dev/null; then
     c_action="${c_action:-${cyan}}"
+    c_prompt="${c_prompt:-${b_cyan}}"
     c_value="${c_value:-${yellow}}"
     c_error="${c_error:-${red}}"
     c_warning="${c_warning:-${b_red}}"
     c_missing="${c_missing:-${b_black}}"
 else
     c_action=""
+    c_prompt=""
     c_value=""
     c_error=""
     c_warning=""
@@ -97,12 +99,12 @@ function git_hooks__ensure_gnu_getopt {
 function git_hooks__sync_collection {
     git_hooks__ensure_gnu_getopt
 
-    local hooks_dir="$githooks_dir" force=false
+    local hooks_dir="$githooks_dir" force=""
     eval set -- "$($getopt -o gf --long "global, force" -- "$@")"
     while [[ $1 != -- ]]; do
         case $1 in
             -g|--global) hooks_dir="$global_githooks_dir"; shift;;
-            -f|--force) force=true; shift;;
+            -f|--force) force="--force"; shift;;
         esac
     done
     shift
@@ -123,13 +125,7 @@ function git_hooks__sync_collection {
             c_config_file="${c_path}/.git/config"
 
             if [[ -f "$c_config_file" ]]; then
-                if "$force" || git_hooks__update_needed "$c_config_file"; then
-                    git_hooks__mark_attempted "$c_config_file"
-                    pushd "$c_path" &>/dev/null
-                    git pull >/dev/null
-                    popd &>/dev/null
-                    git_hooks__mark_updated "$c_config_file"
-                fi
+                git_hooks__update_if_needed "$force" "$c_path"
             else
                 git clone "$c_location" "$c_path"
             fi
@@ -335,6 +331,13 @@ $(md_block_monospace '
     cd <to your repo>
     git hooks install
 ')
+
+$(md '##') Updates:
+$(md_no_indent_or_hash "
+    $(md_inline_bold git-hooks) will periodically check for updates to the core tool and any added
+    collections. You can manually check for updates with the $(md_inline_monospace update) and $(md_inline_monospace sync-collection)
+    commands.
+")
 
 $(md '##') Usage:
         git hooks  # equivalent to list
@@ -1248,11 +1251,11 @@ function git_hooks_include {
 	    <git hook>. Just provide a numeric prefix on the <new name> to indicate
 	    the script's place in the running order.
 
-        Specify '--global' if you want to reference a hook in a global collection.
-        Using this, it's possible to take advantage of project-agnostic hooks without
-        even placing them (or references to them) under your project's source control.
-        Bear in mind that some hooks will place files under the project's source
-        control as a side-effect of their behavior. This is to be expected.
+	    Specify '--global' if you want to reference a hook in a global collection.
+	    Using this, it's possible to take advantage of project-agnostic hooks without
+	    even placing them (or references to them) under your project's source control.
+	    Bear in mind that some hooks will place files under the project's source
+	    control as a side-effect of their behavior. This is to be expected.
 	HELP
     local hooks_dir="$githooks_dir" global=''
 
@@ -1306,40 +1309,76 @@ function git_hooks_include {
 
 
 
+function git_hooks_update () {
+    : <<-ARGS
+	ARGS
+    : <<-HELP
+	    Force an update of the git-hooks tool. This will pull down the latest changes
+	    and check out the latest release branch.
+	HELP
+
+    git_hooks__update_if_needed --force "${bash_source_dir}"
+}
 
 
-function git_hooks__update_needed {
-    local config_file="$1" last_attempted last_updated
+function git_hooks__update_if_needed {
+    local repo_to_update force=false latest_version response
 
-    last_attempted="$(git config -f "$config_file" git-hooks.last-attempted 2>/dev/null)" || last_attempted=0
-    last_updated="$(git config -f "$config_file" git-hooks.last-updated 2>/dev/null)" || last_updated=0
+    eval set -- "$($getopt -o f --long "force" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -f|--force) force=true; shift;;
+        esac
+    done
+    shift
+
+    repo_to_update="$1"
+
+    (
+        pushd "$repo_to_update" >/dev/null
+        if "$force" || git_hooks__update_check_needed; then
+            git_hooks__mark_attempted
+            git fetch >/dev/null
+            latest_version="$(git tag -l --sort=-v:refname | head -n 1)"
+            if [[ -z "$latest_version" ]]; then
+                git pull >/dev/null
+            elif [[ "$(git describe --tag)" == "$latest_version" ]]; then
+                :
+            elif git merge-base --is-ancestor HEAD "$latest_version"; then
+                if "$force"; then
+                    git checkout "$latest_version"
+                    return
+                fi
+
+                printf >&2 "${c_prompt}%s${c_value}%s${c_prompt}%s${c_value}%s${c_prompt}%s ${c_reset}" "Updates available for $(basename "${repo_to_update}"): " "$(git describe --tag)" " -> " "$latest_version" ". Update now? ([y]es/[n]o):"
+                read -r response
+                case "$response" in
+                    yes|y) git checkout "$latest_version" ;;
+                    *) ;;
+                esac
+            fi
+            git_hooks__mark_updated
+        fi
+        popd >/dev/null
+    )
+}
+
+function git_hooks__update_check_needed {
+    local last_attempted last_updated
+
+    last_attempted="$(git config --local git-hooks.last-attempted 2>/dev/null)" || last_attempted=0
+    last_updated="$(git config --local git-hooks.last-updated 2>/dev/null)" || last_updated=0
 
     (( "$(date -v "-7d" "+%s" 2>/dev/null || date -d "last week" "+%s")" > last_updated ))
     (( "$(date -v "-1d" "+%s" 2>/dev/null || date -d "yesterday" "+%s")" > last_attempted ))
 }
 
 function git_hooks__mark_attempted {
-    local config_file="$1"
-    git config -f "$config_file" git-hooks.last-attempted "$(date "+%s")"
+    git config --local git-hooks.last-attempted "$(date "+%s")"
 }
 
 function git_hooks__mark_updated {
-    local config_file="$1"
-    git config -f "$config_file" git-hooks.last-updated "$(date "+%s")"
-}
-
-function git_hooks__check_for_updates {
-    if git_hooks__update_needed; then
-        (
-            cd "$bash_source_dir";
-            git fetch &>/dev/null;
-            behind="$(git rev-list HEAD..origin/master | wc -l)";
-            if (( behind )); then
-                printf "${c_action}%s ${c_value}%s ${c_action}%s${c_reset}\\n" \
-                    "git-hooks is" "$behind" "commits behind. Consider pulling latest code."
-            fi
-        )
-    fi
+    git config --local git-hooks.last-updated "$(date "+%s")"
 }
 
 
@@ -1383,7 +1422,7 @@ function git_hooks__main {
             ;;
 
         # No special requirements
-        add-collection|list-collections|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
+        update|add-collection|list-collections|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
             ;;
 
         *)  printf >&2 "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "git-hooks:" "$git_hooks_command" "is not a git-hooks command." >&2
