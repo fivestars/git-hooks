@@ -4,6 +4,32 @@
 . "$1/core.sh" "$1"
 
 function jira_is_valid_branch_name () {
+    jira_is_valid_ticket_branch_name "$1" || jira_is_valid_non_ticket_branch_name "$1"
+}
+
+function jira_is_valid_non_ticket_branch_name () {
+    # Fail if the branch name does not match the expected pattern.
+    # These branches would be used for scratch or sandbox work
+    # that are not intended to be published as PRs.
+    # The matching pattern starts with a magic string configured
+    # by the git config value for 'git-hooks.non-ticketed-prefix'.
+    # The default for this value is 'local-'.
+    #
+    # Examples of valid branch names:
+    #    local-stuff
+    #    local-stuff-2
+    #    local-STUFF-234
+    #    local-3
+    #
+    # Return: 0 or 1
+    # Stdout: <none>
+    # Stderr: <none>
+    local non_ticketed_prefix
+    non_ticketed_prefix="$(git config git-hooks.non-ticketed-prefix)" || non_ticketed_prefix="local"
+    grep -qE "^${non_ticketed_prefix}(-[a-zA-Z0-9]+)+\$" <<<"$1"
+}
+
+function jira_is_valid_ticket_branch_name () {
     # Fail if the branch name does not match the expected pattern
     # Examples of valid branch names:
     #    JIRA-1
@@ -28,7 +54,7 @@ function jira_get_ticket_from_branch_name () {
     # Stderr: <none>
     local branch="$1"
 
-    jira_is_valid_branch_name "$branch" && sed -E "s/^[^A-Z]*([A-Z]+-[0-9]+).*$/\\1/" <<<"$branch"
+    jira_is_valid_ticket_branch_name "$branch" && sed -E "s/^[^A-Z]*([A-Z]+-[0-9]+).*$/\\1/" <<<"$branch"
 }
 
 function jira_ensure_conforming_branch_name () {
@@ -54,9 +80,15 @@ function jira_get_new_branch_name () {
     # Return: 0
     # Stdout: The well-formed branch name
     # Stderr: Instructions on how to provide the value
-    local branch response
+    local branch jira_ticket response
 
-    branch="$(jira_get_username_prefix)-$(jira_get_ticket)$(jira_get_suffix)"
+    jira_ticket="$(jira_get_ticket)"
+
+    if [[ "-" == "$jira_ticket" ]]; then
+        branch="$(jira_get_new_non_ticketed_branch_name)"
+    else
+        branch="$(jira_get_username_prefix)-${jira_ticket}$(jira_get_suffix)"
+    fi
 
     printf >&2 "${c_prompt}%s ${c_value}%s ${c_prompt}%s: ${c_reset}" "Branch" "$branch" "will be created unless you provide a new name now (optional)"
 
@@ -109,13 +141,16 @@ function jira_get_ticket () {
     project=$(jira_ensure_project)
     project_id=$(git config -f .jira project."$project".id)
 
-    printf >&2 "${c_prompt}%s:${c_reset} %s-" "Provide your Jira issue number (or leave blank if ticket doesn't exist yet)" "$project"
+    printf >&2 "${c_prompt}%s:${c_reset} %s-" "Provide your Jira issue number (leave blank if ticket doesn't exist yet, or use '-' to indicate a non-ticket branch)" "$project"
 
     read -r response
     case "$response" in
         '') printf >&2 "    ${c_action}%s${c_reset}\\n" "Create a new ticket in Jira now"
             open_uri >&2 "https://$(git config jira.hostname)/secure/CreateIssue.jspa?pid=$project_id"
             jira_get_ticket
+            ;;
+
+        '-') echo '-'
             ;;
 
         *)  if grep -qE "^[0-9]+" <<<"$response"; then
@@ -126,6 +161,23 @@ function jira_get_ticket () {
             fi
             ;;
     esac
+}
+
+function jira_get_new_non_ticketed_branch_name () {
+    local response non_ticketed_prefix branch
+
+    non_ticketed_prefix="$(git config git-hooks.non-ticketed-prefix)" || non_ticketed_prefix="local"
+
+    printf >&2 "${c_prompt}%s:${c_reset} %s-" "Provide a helpful suffix (optional)" "$non_ticketed_prefix"
+
+    read -r response
+    branch="${non_ticketed_prefix}-${response}"
+    if jira_is_valid_non_ticket_branch_name "$branch"; then
+        echo "${branch}"
+    else
+        printf >&2 "${c_error}%s${c_reset}\\n" "Must use alpha-numeric and hyphens(inclusively) only"
+        jira_get_new_non_ticketed_branch_name
+    fi
 }
 
 function jira_get_suffix () {
