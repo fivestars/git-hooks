@@ -12,13 +12,14 @@ DESC
 # shellcheck source=included/lib/jira.sh
 . "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
-commit_msg="$1"
-
-# Lets just send all output to stderr
-exec >&2
-
 if [[ -f $(git rev-parse --git-dir)/MERGE_HEAD ]]; then
     # This is a merge commit, don't enforce rules
+    exit
+elif ! branch=$(git symbolic-ref --short HEAD 2>/dev/null); then
+    # Commit is not on a branch (or is the first commit in a repo)
+    exit
+elif ! jira_is_valid_ticket_branch_name "$branch"; then
+    # This is unticketed work, don't bother with the format checks
     exit
 fi
 
@@ -26,6 +27,11 @@ if [[ "$(sed -e '/^#.*/d' -e '/^$/d' "$commit_msg" | wc -l)" -eq 0 ]]; then
     # Allow git commit to abort normally on an empty commit message
     exit
 fi
+
+commit_msg="$1"
+
+# Lets just send all output to stderr
+exec >&2
 
 # Save the msg in case our commit fails and we want to preload it next time
 # in a prepare-commit-msg hook.
