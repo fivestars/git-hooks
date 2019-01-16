@@ -62,12 +62,31 @@ if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
 
     # Get our Jira issue id and substitute it for $JIRA in the received commit message
     if branch=$(git symbolic-ref --short HEAD 2>/dev/null); then
-        jira_ticket=$(jira_get_ticket_from_branch_name "$branch" || jira_get_ticket)
+        if jira_ticket="$(jira_get_ticket_from_branch_name "$branch")"; then
+            ticketed=true
+        else
+            ticketed=false
+            jira_ticket="$branch"
+        fi
     else
+        ticketed=true
         jira_ticket=$(jira_get_ticket)
+        if [[ "$jira_ticket" == "-" ]]; then
+            ticketed=false
+            jira_ticket="$branch"
+        fi
     fi
 
     tmpfile=$(mktemp -t git-commit-msg-template.XXXX); trap 'rm -f $tmpfile' EXIT
+
+    # If the work is unticketed, blank out any JIRA substitions
+    if ! "$ticketed"; then
+        # sed -e "/^.*\${\\?JIRA.*$/d" "$1" >"$tmpfile"
+        # cp "$tmpfile" "$1"
+        JIRA="" JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA \$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
+        cp "$tmpfile" "$1"
+        exit
+    fi
 
     printf "${c_action}%s ${c_value}%s ${c_action}%s${c_reset}\\n" "Applying Jira ticket" "$jira_ticket" "to commit message"
     JIRA="$jira_ticket" envsubst "\$JIRA" <"$1" >"$tmpfile"
