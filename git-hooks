@@ -65,6 +65,7 @@ function git_hooks__ensure_modern_bash {
     # Ensure that the user has a modern version (>= 4.*) of the bash shell (silly mac users)
     case "${BASH_VERSION}" in
         4.*) ;;
+        5.*) ;;
         *)  printf >&2 "${c_error}%s${c_reset}\\n" "Upgrade your bash to version 4.*"
             exit 1
             ;;
