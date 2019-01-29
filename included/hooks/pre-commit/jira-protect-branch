@@ -15,6 +15,11 @@ HELP
 # shellcheck source=included/lib/jira.sh
 . "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
+if ! commit_in_progress; then
+    printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
+    exit 0
+fi
+
 branch=$(git symbolic-ref --short HEAD)
 
 if is_protected_branch "$branch"; then
