@@ -109,14 +109,31 @@ function get_cached_commit_message_filename {
 }
 
 function clear_cached_commit_message_in_use {
-    rm -f .git/CACHED_COMMIT_MSG
+    rm -f "$(git rev-parse --git-path CACHED_COMMIT_MSG)"
 }
 
 function set_cached_commit_message_in_use {
-    cp "$1" .git/CACHED_COMMIT_MSG
+    cp "$1" "$(git rev-parse --git-path CACHED_COMMIT_MSG)"
     mv "$1" "$2"
 }
 
 function is_cached_commit_message_in_use {
-    [[ -f .git/CACHED_COMMIT_MSG ]]
+    [[ -f "$(git rev-parse --git-path CACHED_COMMIT_MSG)" ]]
+}
+
+function merge_in_progress {
+    [[ -f "$(git rev-parse --git-path MERGE_HEAD)" ]]
+}
+
+function cherry_pick_in_progress {
+    [[ -f "$(git rev-parse --git-path CHERRY_PICK_HEAD)" ]]
+}
+
+function rebase_in_progress {
+    [[ -d "$(git rev-parse --git-path rebase-merge)" || -d "$(git rev-parse --git-path rebase-apply)" ]]
+}
+
+function commit_in_progress {
+    # Assumes some HEAD-modifying operation is in progress
+    ! { merge_in_progress || cherry_pick_in_progress || rebase_in_progress; }
 }

@@ -30,7 +30,9 @@ case "${2:-}" in
     # This means git will not prompt us to further edit the message.
     message)
         # Don't bother if this is a cherry-pick
-        [[ -f .git/CHERRY_PICK_HEAD ]] && exit
+        if cherry_pick_in_progress; then
+            exit
+        fi
 
         # We will need to manually apply the template, so let's verify that it exists
         template="$(git config commit.template)" && [[ -f "$template" ]] || exit

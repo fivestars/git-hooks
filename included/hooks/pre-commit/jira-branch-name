@@ -22,6 +22,13 @@ HELP
 branch=$(git symbolic-ref --short HEAD)
 if (( $# )); then
     move_to_branch "$(jira_ensure_conforming_branch_name "$(jira_get_new_branch_name)")"
-elif ! is_protected_branch "$branch"; then
-    move_to_branch "$(jira_ensure_conforming_branch_name "$branch")"
+else
+    if ! commit_in_progress; then
+        printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
+        exit 0
+    fi
+
+    if ! is_protected_branch "$branch"; then
+        move_to_branch "$(jira_ensure_conforming_branch_name "$branch")"
+    fi
 fi
