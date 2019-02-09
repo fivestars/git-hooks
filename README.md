@@ -22,7 +22,9 @@ A tool for managing and invoking custom git hook scripts.
 ### Global hooks:
  You can have global hooks on your machine. These will be run for any repository that has **git-hooks** installed (ie. has the multiplexer scripts in its `.git/hooks` dir. See **Installation** below). This is useful for applying consistent, project-agnostic rules across all of your projects (such as commit message format/structure). These hooks can be literal script files or reference hooks, but they will not be checked into the source control of the repositories that they will affect. They will appear and run alongside the repo's own hooks.  
 
- Global hooks will be enabled by default for all repos with **git-hooks** installed. If you wish to prevent the global git hooks from running for a repository, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
+ You also have the option of organizing your global hooks into global sets. Let's say you have a group of repositories (*alpha*) that you want global hooks A, B and C applied to and another group (*beta*) that you want global hooks A, D and F applied to. You can use `use-globals alpha` in your *alpha* repositories and any global hooks you include while in those repositories will be associated with the *alpha* global set. Similarly for the *beta* group. If you don't provide a global set name to `use-globals` it will use the anonymous *\<default>* global set. There is nothing special about this global set, except that it's the one that will be used if you never invoke `use-globals` in your repository.  
+
+ Global hooks will be enabled by default for all repos with **git-hooks** installed. If you wish to prevent the global git hooks from running for a repository, use `disable-globals`. This will still allow your repository-specific source-controlled hooks to run as normal. Use `use-globals` to re-enable global hooks in your repository.  
 
 ## Installation:
 
@@ -69,6 +71,7 @@ A tool for managing and invoking custom git hook scripts.
     or: git hooks disable [-q|--quiet] <git hook>... <custom script name>...
     or: git hooks run [-f|--force] <git hook>|<custom script name>
     or: git hooks install [--no-preserve]
+    or: git hooks update 
     or: git hooks uninstall 
     or: git hooks install-command 
     or: git hooks uninstall-command 
@@ -77,6 +80,8 @@ A tool for managing and invoking custom git hook scripts.
     or: git hooks add-collection [-g|--global] <collection name> <clone url> [<subpath to hooks>]
     or: git hooks list-collections [-g|--global]
     or: git hooks sync-collection [-g|--global] <collection name>
+    or: git hooks use-globals [<global set>]
+    or: git hooks disable-globals 
     or: git hooks include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
     or: git hooks check-support 
     or: git hooks parallel <git hook> [<num>]
@@ -137,9 +142,29 @@ A tool for managing and invoking custom git hook scripts.
         file. In the case of a bare repository, the config file is located at
         ./config.
 
+    ~/.githooks
+        This is the location of the global hooks configuration and script
+        collections. The anonymous <default> global set hooks will be found in
+        this directory, but other named global sets will we be found in
+        ~/.githooks/.global-sets
+
+    ~/.githooks/.global-sets
+        This directory will contain a subdirectory for each global set
+        configured on this machine.
+
+    ~/.githooks/.collections
+        This is where global hook collections will be cloned to and
+        referenced from reference hook scripts. One creates these reference
+        hook scripts with git hooks include --global ....
+
+    ~/.githooks
+        This is the location of the global hooks configuration and script
+        collections.
+
     ~/.gitconfig
-        Some configs, such as unicode output and color output support will be stored here.
-        Additionally, the periodic update check information is stored here.
+        Some configs, such as unicode output and color output support will be
+        stored here. Additionally, the periodic update check information is
+        stored here.
 
     ~/.gittemplate/hooks
     ~/.gittemplate/info/exclude
@@ -195,6 +220,10 @@ A tool for managing and invoking custom git hook scripts.
         .git/hooks will be moved to the .githooks directory with the
         "-moved" suffix.
 
+    update 
+        Force an update of the git-hooks tool. This will pull down the latest changes
+        and check out the latest release branch.
+
     uninstall 
         Removes the multiplexer hooks from the .git/hooks directory.
 
@@ -243,6 +272,13 @@ A tool for managing and invoking custom git hook scripts.
     
         [-g|--global]:      The collection will be considered available to all repos.
         <collection name>:  The internal name for the collection to be updated.
+
+    use-globals [<global set>]
+        Use the named global set of hooks for this repository. If <global set> is not
+        provided, use the default anonymous global set.
+
+    disable-globals 
+        Disable global hooks for the current repository.
 
     include [-g|--global] <collection name> <git hook> <hook executable> [<new name>]
         Link an existing script from a collection into this repository.
