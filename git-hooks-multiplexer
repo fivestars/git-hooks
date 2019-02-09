@@ -20,12 +20,18 @@ done
 bash_source_dir="$(cd -P "$(dirname "$bash_source")" >/dev/null && pwd)"
 bash_source="${bash_source_dir}/${bash_source##*/}"
 
+# Export our source lib directory so hook scripts can include lib functionality
+export GIT_HOOKS_LIB="${bash_source_dir}/included/lib"
+
+# Get functions defined in the main git-hooks script
 # shellcheck disable=1090
 . "${bash_source_dir}/git-hooks" "${bash_source_dir}"
 
 export c_action
+export c_prompt
 export c_value
 export c_error
+export c_warning
 export c_missing
 export c_reset
 

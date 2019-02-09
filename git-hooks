@@ -445,7 +445,22 @@ $(md_no_indent_or_hash "
     Setting the parallel option (see above) will cause all scripts to be run
     concurrently without regard to their conventional order.
 ")
+$(md '###')    Using included lib functionality:
+$(md_no_indent_or_hash "
+        There are some helpful functions already available to you in $(md_inline_monospace included/lib).
+        If you wish to use them, you will need to $(md_inline_monospace source) the desired file. To
+        facilitate this, your scripts will have access to the $(md_inline_monospace GIT_HOOKS_LIB) environment
+        variable. For example, if you wanted to use $(md_inline_monospace commit_in_progress) you would do
+        the following:
+")
+$(md_block_monospace '
+        #!/usr/bin/env bash
+        . "${GIT_HOOKS_LIB}/core.sh" "${GIT_HOOKS_LIB}"
 
+        if ! commit_in_progress; then
+            ...
+        fi
+')
 $(md '###')    Preventing parallel execution:
 $(md_no_indent_or_hash "
         If your script cannot be run in parallel with another of the same
