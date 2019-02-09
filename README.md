@@ -303,7 +303,17 @@ A tool for managing and invoking custom git hook scripts.
 
 ```
  When a git hook is invoked it will look for your hooks scripts with the corresponding prefix and call them according to your config. By default your scripts will be run sequentially in alphabetical order as they appear in the `.githooks` directory.  Setting the parallel option (see above) will cause all scripts to be run concurrently without regard to their conventional order.  
+###    Using included lib functionality:
+ There are some helpful functions already available to you in `included/lib`. If you wish to use them, you will need to `source` the desired file. To facilitate this, your scripts will have access to the `GIT_HOOKS_LIB` environment variable. For example, if you wanted to use `commit_in_progress` you would do the following:  
+```
+        #!/usr/bin/env bash
+        . "${GIT_HOOKS_LIB}/core.sh" "${GIT_HOOKS_LIB}"
 
+        if ! commit_in_progress; then
+            ...
+        fi
+
+```
 ###    Preventing parallel execution:
  If your script cannot be run in parallel with another of the same git hook family, you may enforce this by calling the exported function `prevent-parallel` from within your script.  Example:  
 ```
