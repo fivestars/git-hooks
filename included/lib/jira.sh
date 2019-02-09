@@ -141,7 +141,10 @@ function jira_get_ticket () {
     project=$(jira_ensure_project)
     project_id=$(git config -f .jira project."$project".id)
 
-    printf >&2 "${c_prompt}%s:${c_reset} %s-" "Provide your Jira issue number (leave blank if ticket doesn't exist yet, or use '-' to indicate a non-ticket branch)" "$project"
+    printf >&2 "${c_prompt}%s${c_reset} %s\\n" "Provide your Jira issue number"
+    printf >&2 "${c_prompt}%s${c_reset} %s\\n" " - leave blank if ticket doesn't exist yet"
+    printf >&2 "${c_prompt}%s${c_reset} %s\\n" " - or use '-' to indicate a non-ticket branch"
+    printf >&2 "${c_prompt}%s${c_reset} %s" ":" "${project}-"
 
     read -r response
     case "$response" in
