@@ -1,6 +1,27 @@
 # Changelog
 
-## 1.1.1 -
+## 1.2.0 - Allow unticketed work, manual updates, and access to included lib functions
+*Date:* 2019-02-08
+
+*Tags:*  `v1.2.0`
+
+### Features
+- Exporting GIT_HOOKS_LIB directory to user hook scripts
+- Added `git hooks update` command to allow manual syncing
+- Allow for unticketed work when using jira hooks
+- Added some core functions to determine what kind of git operation is underway(commit, merge, cherry-pick...)
+
+### Changes
+- ${c_prompt} and ${c_warning} are now available to user hook scripts
+- Wrapped some update code into reusable functions
+- Skip `commit-msg/jira-format` when possible (merge, non-branch commit, unticketed work)
+- Skip `pre-commit/jira-branch-name` when possible (not a new commit in progress)
+- Skip `pre-commit/jira-protect-branch` when possible (not a new commit in progress)
+
+### Fixes
+- Don't print branch name in `pre-commit/jira-protect-branch`
+
+## 1.1.1 - Jira hooks fixes
 *Date:* 2019-01-14
 
 *Tags:*  `v1.1.1`
