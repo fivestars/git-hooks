@@ -126,7 +126,9 @@ function git_hooks__sync_collection {
             c_config_file="${c_path}/.git/config"
 
             if [[ -f "$c_config_file" ]]; then
-                git_hooks__update_if_needed "$force" "$c_path"
+                # We purposefully leave the quotes off of $c_global here to avoid problems
+                # with parameter assignment within the called function.
+                git_hooks__update_if_needed $force "$c_path"
             else
                 git clone "$c_location" "$c_path"
             fi
@@ -282,7 +284,7 @@ $(md_no_indent_or_hash "
 $(md_no_indent_or_hash "
     Global hooks will be enabled by default for all repos with $(md_inline_bold git-hooks)
     installed. If you wish to prevent the global git hooks from running for
-    a repostiory, set the local git config value of $(md_inline_quotes "git-hooks.global-enabled")
+    a repository, set the local git config value of $(md_inline_quotes "git-hooks.global-enabled")
     to $(md_inline_quotes false) within the repository. This will allow you to continue
     to use the repo's source-controlled git hooks.
 ")
@@ -1236,8 +1238,8 @@ function git_hooks_show_input {
 
 function git_hooks_config {
     : <<-HELP
-    Simply lists all hooks-related git config settings.
-HELP
+	    Simply lists all hooks-related git config settings.
+	HELP
 
     local -a files=( system global )
 
@@ -1483,8 +1485,10 @@ function git_hooks__run_referenced_hook {
     fi
 
     # Retrieve/update the collection referenced in this config
-    git_hooks__sync_collection "$c_global" "$c_name" ||:
-    git_hooks__ensure_collection "$c_global" "$c_name"
+    # We purposefully leave the quotes off of $c_global here to avoid problems
+    # with parameter assignment within the called functions.
+    git_hooks__sync_collection $c_global "$c_name" ||:
+    git_hooks__ensure_collection $c_global "$c_name"
 
     "${hooks_dir}/.collections/${c_name}/${c_subpath:+${c_subpath}/}$(git config -f "$hook_path" --get git-hooks.hook)" "$@"
 }

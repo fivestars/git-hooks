@@ -139,8 +139,8 @@ count=0
 # Set a trap to clean up our temp file
 # shellcheck disable=2064
 trap "rm -f ${tmpfile}*" EXIT SIGHUP SIGINT SIGTERM
-# Collate our .githook scripts
 
+# Collate our .githook scripts
 while read -r _ hook_name hook hook_path; do
     if { ! $GITHOOKS_RUN; } && { git config --get-regexp "hooks\\.$HOOK\\.enabled" false &>/dev/null \
             || git config --get-regexp "hooks\\.${hook_name}-${hook}\\.enabled" false &>/dev/null; }; then

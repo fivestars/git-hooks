@@ -22,7 +22,7 @@ A tool for managing and invoking custom git hook scripts.
 ### Global hooks:
  You can have global hooks on your machine. These will be run for any repository that has **git-hooks** installed (ie. has the multiplexer scripts in its `.git/hooks` dir. See **Installation** below). This is useful for applying consistent, project-agnostic rules across all of your projects (such as commit message format/structure). These hooks can be literal script files or reference hooks, but they will not be checked into the source control of the repositories that they will affect. They will appear and run alongside the repo's own hooks.  
 
- Global hooks will be enabled by default for all repos with **git-hooks** installed. If you wish to prevent the global git hooks from running for a repostiory, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
+ Global hooks will be enabled by default for all repos with **git-hooks** installed. If you wish to prevent the global git hooks from running for a repository, set the local git config value of `git-hooks.global-enabled` to `false` within the repository. This will allow you to continue to use the repo's source-controlled git hooks.  
 
 ## Installation:
 
