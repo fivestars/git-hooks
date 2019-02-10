@@ -2,8 +2,12 @@
 set -eu -o pipefail
 
 : <<DESC
-Delete the cached commit message file created by prepare-commit-msg/template
+${c_warning}[DEPRECATED]${c_reset} Delete the cached commit message file created by ${c_value}commit-msg${c_reset} hooks
 DESC
+
+: <<HELP
+${c_warning}[DEPRECATED]${c_reset} Use ${c_value}prepare-commit-msg/cached${c_reset} and ${c_value}prepare-commit-msg/subject${c_reset} instead.
+HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
 # shellcheck source=included/lib/core.sh

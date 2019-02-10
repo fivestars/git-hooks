@@ -2,9 +2,19 @@
 set -eu -o pipefail
 
 : <<DESC
-Appends Sentry "Fixes XXXX" lines for any Jira issue links that contain a
-Sentry link as the first line in the Jira issue description.
+Appends Sentry ${c_value}Fixes XXXX${c_reset} lines to your git commit message
 DESC
+
+: <<HELP
+This looks for any Jira issue links that contain a Sentry link as the
+first line in the Jira issue description. If it finds that Sentry link,
+it parses out the Sentry issue identifier and lists it in the commit
+message.
+
+Each time it runs, it will clear out any existing Sentry issues in the
+commit message before re-adding them again (such as during an amend
+operation).
+HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
 # shellcheck source=included/lib/jira.sh

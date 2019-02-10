@@ -2,15 +2,17 @@
 set -eu -o pipefail
 
 : <<DESC
-Inject a custom commit message and restore failed commit messages
+${c_warning}[DEPRECATED]${c_reset} Inject a custom commit message and restore failed commit messages
 DESC
 
 : <<HELP
-Provide a custom commit message in a .gitmessage file in the top-level
+${c_warning}[DEPRECATED]${c_reset} Use ${c_value}prepare-commit-msg/cached${c_reset} and ${c_value}prepare-commit-msg/subject${c_reset} instead.
+
+Provide a custom commit message in a ${c_value}.gitmessage${c_reset} file in the top-level
 repository directory.
 
-If the commit fails due to a 'commit-msg-format' failure, this hook
-will reload the failed message on the next commit at the current HEAD.
+If the commit fails due to a ${c_value}commit-msg-format${c_reset} failure, this hook will
+reload the failed message on the next commit at the current ${c_value}HEAD${c_reset}.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)

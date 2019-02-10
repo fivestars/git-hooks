@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 : <<DESC
-Delete the cached commit message file created by prepare-commit-msg hooks
+Delete the cached commit message file created by ${c_value}commit-msg${c_reset} hooks
 DESC
 
 # Get our useful functions (be sure to provide lib path as source argument)

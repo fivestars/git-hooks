@@ -2,11 +2,13 @@
 set -eu -o pipefail
 
 : <<DESC
-Validate the format of a commit message.
-
-One can specify the git config value "hooks.format.long-line-regex" to provide
-a regex for lines to be omitted from the message body line-length check.
+Validate the format of a commit message
 DESC
+
+: <<HELP
+One can specify the git config value ${c_value}hooks.format.long-line-regex${c_reset} to provide a
+regex for lines to be omitted from the message body line-length check.
+HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)
 # shellcheck source=included/lib/core.sh

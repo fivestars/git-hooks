@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 : <<DESC
-Delete all *.pyc files
+Delete all ${c_value}*.pyc${c_reset} files
 DESC
 
 
