@@ -188,6 +188,14 @@ function md_inline_bold {
     fi
 }
 
+function md_inline_italics {
+    if $USE_MARKDOWN; then
+        echo -n "*$**"
+    else
+        echo -n "\"$*\""
+    fi
+}
+
 function md_inline_monospace {
     if $USE_MARKDOWN; then
         echo -n "\`$*\`"
@@ -282,11 +290,25 @@ $(md_no_indent_or_hash "
 ")
 
 $(md_no_indent_or_hash "
+    You also have the option of organizing your global hooks into "global sets".
+    Let's say you have a group of repositories ($(md_inline_italics alpha)) that you want
+    global hooks A, B and C applied to and another group ($(md_inline_italics beta)) that
+    you want global hooks A, D and F applied to. You can use $(md_inline_monospace use-globals alpha) in your
+    $(md_inline_italics alpha) repositories and any global hooks you include while in
+    those repositories will be associated with the $(md_inline_italics alpha) global set.
+    Similarly for the $(md_inline_italics beta) group. If you don't provide a global set
+    name to $(md_inline_monospace use-globals) it will use the anonymous $(md_inline_italics \\\<default\>) global set.
+    There is nothing special about this global set, except that it's the one
+    that will be used if you never invoke $(md_inline_monospace use-globals) in your
+    repository.
+")
+
+$(md_no_indent_or_hash "
     Global hooks will be enabled by default for all repos with $(md_inline_bold git-hooks)
     installed. If you wish to prevent the global git hooks from running for
-    a repository, set the local git config value of $(md_inline_quotes "git-hooks.global-enabled")
-    to $(md_inline_quotes false) within the repository. This will allow you to continue
-    to use the repo's source-controlled git hooks.
+    a repository, use $(md_inline_monospace disable-globals). This will still
+    allow your repository-specific source-controlled hooks to run as normal.
+    Use $(md_inline_monospace use-globals) to re-enable global hooks in your repository.
 ")
 
 $(md '##') Installation:
@@ -349,6 +371,7 @@ $(md '##') Usage:
     or: git hooks $(git_hooks__extract_desc disable)
     or: git hooks $(git_hooks__extract_desc run)
     or: git hooks $(git_hooks__extract_desc install)
+    or: git hooks $(git_hooks__extract_desc update)
     or: git hooks $(git_hooks__extract_desc uninstall)
     or: git hooks $(git_hooks__extract_desc install-command)
     or: git hooks $(git_hooks__extract_desc uninstall-command)
@@ -357,6 +380,8 @@ $(md '##') Usage:
     or: git hooks $(git_hooks__extract_desc add-collection)
     or: git hooks $(git_hooks__extract_desc list-collections)
     or: git hooks $(git_hooks__extract_desc sync-collection)
+    or: git hooks $(git_hooks__extract_desc use-globals)
+    or: git hooks $(git_hooks__extract_desc disable-globals)
     or: git hooks $(git_hooks__extract_desc include)
     or: git hooks $(git_hooks__extract_desc check-support)
     or: git hooks $(git_hooks__extract_desc parallel)
@@ -398,9 +423,29 @@ $(md '##') Files:
         file. In the case of a bare repository, the config file is located at
         ./config.
 
+    ~/.githooks
+        This is the location of the global hooks configuration and script
+        collections. The anonymous <default> global set hooks will be found in
+        this directory, but other named global sets will we be found in
+        ~/.githooks/.global-sets
+
+    ~/.githooks/.global-sets
+        This directory will contain a subdirectory for each global set
+        configured on this machine.
+
+    ~/.githooks/.collections
+        This is where global hook collections will be cloned to and
+        referenced from reference hook scripts. One creates these reference
+        hook scripts with "git hooks include --global ...".
+
+    ~/.githooks
+        This is the location of the global hooks configuration and script
+        collections.
+
     ~/.gitconfig
-        Some configs, such as unicode output and color output support will be stored here.
-        Additionally, the periodic update check information is stored here.
+        Some configs, such as unicode output and color output support will be
+        stored here. Additionally, the periodic update check information is
+        stored here.
 
     ~/.gittemplate/hooks
     ~/.gittemplate/info/exclude
@@ -931,8 +976,23 @@ function git_hooks_list {
 	HELP
 
     local total count=0 disabled=false unicode hook_name previous_hook_name hooks_list max_len=0 padding pad
+    local global_set global_set_dir
 
     unicode="$(git config --bool git-hooks.unicode)" || unicode=true
+
+    global_enabled="$(git config --bool git-hooks.global-enabled)" || global_enabled=true
+    if "$global_enabled"; then
+        if global_set="$(git config git-hooks.global-set)"; then
+            global_set_dir="${global_githooks_dir}/.global-sets/${global_set}"
+        else
+            global_set="<default>"
+            global_set_dir="${global_githooks_dir}"
+        fi
+
+        if [[ -d "$global_set_dir" ]]; then
+            printf >&2 "${c_action}%s${c_value}%s${c_reset}\\n" "Using global hook set: " "$global_set"
+        fi
+    fi
 
     hooks_list="$(git_hooks__get_hooks "$@")"
     while read -r _ hook_name _ _; do
@@ -986,11 +1046,24 @@ function git_hooks__get_hooks {
     local hook_dirs=""
     local hook_name total path name
     local global_enabled
+    local global_set global_set_dir
 
-    global_enabled=$(git config --bool git-hooks.global-enabled) || global_enabled=true
+    if [[ -d "$githooks_dir" ]]; then
+        hook_dirs="$githooks_dir"
+    fi
 
-    [[ -d "$githooks_dir" ]] && hook_dirs="$hook_dirs $githooks_dir"
-    "$global_enabled" && [[ -d "$global_githooks_dir" ]] && hook_dirs="$hook_dirs $global_githooks_dir"
+    global_enabled="$(git config --bool git-hooks.global-enabled)" || global_enabled=true
+    if "$global_enabled"; then
+        if global_set="$(git config git-hooks.global-set)"; then
+            global_set_dir="${global_githooks_dir}/.global-sets/${global_set}"
+        else
+            global_set_dir="${global_githooks_dir}"
+        fi
+
+        if [[ -d "$global_set_dir" ]]; then
+            hook_dirs="$hook_dirs $global_set_dir"
+        fi
+    fi
     [[ -n "$hook_dirs" ]] || return
 
     for hook_name in "${hook_names[@]}"; do
@@ -1000,14 +1073,14 @@ function git_hooks__get_hooks {
         fi
 
         # shellcheck disable=2086
-        total=$(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | wc -l)
+        total=$(find $hook_dirs -maxdepth 2 -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | wc -l)
 
         # shellcheck disable=2086
         while read -r path; do
             name="${path##*${hook_name}}"
             name="${name:1:${#name}}"
             echo "$total $hook_name $name $path"
-        done < <(find $hook_dirs -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | sort)
+        done < <(find $hook_dirs -maxdepth 2 -type f -path "*/${hook_name}*" -not -path "*/.collections/*" -not -name "*~" | sort)
     done
 }
 
@@ -1098,7 +1171,7 @@ function git_hooks_run {
 	    scripts. You can force the hook or script to run by specifying the
 	    --force flag.
 	HELP
-    local hook name path
+    local hook name path global_set global_set_dir
 
     eval set -- "$($getopt -o f --long "force" -- "$@")"
     while [[ $1 != -- ]]; do
@@ -1138,14 +1211,23 @@ function git_hooks_run {
         # Run the multiplexer script
         path="${repo_git_hooks_dir}/${hook}"
     else
+        global_enabled="$(git config --bool git-hooks.global-enabled)" || global_enabled=true
+        if "$global_enabled"; then
+            if global_set="$(git config git-hooks.global-set)"; then
+                global_set_dir="${global_githooks_dir}/.global-sets/${global_set}"
+            else
+                global_set_dir="${global_githooks_dir}"
+            fi
+        fi
+
         if [[ -f "${githooks_dir}/${name}" ]]; then
             path="${githooks_dir}/${name}"
         elif [[ -f "${githooks_dir}/${hook}/${name#${hook}-}" ]]; then
             path="${githooks_dir}/${hook}/${name#${hook}-}"
-        elif [[ -f "${global_githooks_dir}/${name}" ]]; then
-            path="${global_githooks_dir}/${name}"
-        elif [[ -f "${global_githooks_dir}/${hook}/${name#${hook}-}" ]]; then
-            path="${global_githooks_dir}/${hook}/${name#${hook}-}"
+        elif [[ -f "${global_set_dir}/${name}" ]]; then
+            path="${global_set_dir}/${name}"
+        elif [[ -f "${global_set_dir}/${hook}/${name#${hook}-}" ]]; then
+            path="${global_set_dir}/${hook}/${name#${hook}-}"
         else
             printf >&2 "${c_error}%s${c_reset}\\n" "Could not find hook or custom script"
             return 1
@@ -1164,6 +1246,7 @@ function git_hooks_run {
     "$path" "$@"
     popd >/dev/null
 }
+
 
 
 
@@ -1275,12 +1358,22 @@ function git_hooks_include {
 	    Bear in mind that some hooks will place files under the project's source
 	    control as a side-effect of their behavior. This is to be expected.
 	HELP
-    local hooks_dir="$githooks_dir" global=''
+    local hooks_dir="$githooks_dir" global='' global_set global_set_dir
 
     eval set -- "$($getopt -o g --long "global" -- "$@")"
-    while [[ $1 != -- ]]; do
-        case $1 in
-            -g|--global) hooks_dir="$global_githooks_dir"; global='-g'; shift;;
+    while [[ "$1" != -- ]]; do
+        case "$1" in
+            -g|--global)
+                global='-g'
+                hooks_dir="$global_githooks_dir"
+                if global_set="$(git config git-hooks.global-set)"; then
+                    global_set_dir="${global_githooks_dir}/.global-sets/${global_set}"
+                    mkdir -p "$global_set_dir"
+                else
+                    global_set_dir="$global_githooks_dir"
+                fi
+                shift
+                ;;
         esac
     done
     shift
@@ -1311,7 +1404,7 @@ function git_hooks_include {
             return 1
         fi
 
-        path="${hooks_dir}/${hook_name}/${as:-${hook}}"
+        path="${global_set_dir}/${hook_name}/${as:-${hook}}"
         mkdir -p "$(dirname "$path")"
         printf '#!/usr/bin/env git-hooks\n\n' > "$path"
         git config -f "$path" git-hooks.collection "$c_name"
@@ -1324,6 +1417,48 @@ function git_hooks_include {
         printf >&2 "${c_error}%s ${c_value}%s${c_reset}\\n" "Hook not found:" "$src_path"
     fi
 }
+
+
+
+
+
+
+function git_hooks_disable_globals {
+    : <<-ARGS
+	ARGS
+    : <<-HELP
+	    Disable global hooks for the current repository.
+	HELP
+
+    git config --bool git-hooks.global-enabled false
+}
+
+
+
+
+
+
+function git_hooks_use_globals {
+    : <<-ARGS
+	    [<global set>]
+	ARGS
+    : <<-HELP
+	    Use the named global set of hooks for this repository. If <global set> is not
+	    provided, use the default anonymous global set.
+	HELP
+    local global_set="${1:-}"
+
+    git config --unset git-hooks.global-enabled
+
+    if [[ -n "${global_set:-}" ]]; then
+        git config git-hooks.global-set "${global_set}"
+    else
+        git config --unset git-hooks.global-set
+    fi
+}
+
+
+
 
 
 
@@ -1435,7 +1570,7 @@ function git_hooks__main {
     # Determine the correct command to run and pass it the rest of the un-parsed options
     case "$git_hooks_command" in
         # Require a git repository for these commands
-        install|uninstall|list|disable|enable|run|parallel|show-input)
+        install|uninstall|list|enable|disable|run|parallel|show-input|use-globals|disable-globals)
             git_hooks__require_git_dir
             ;;
 
@@ -1464,11 +1599,11 @@ function git_hooks__run_referenced_hook {
 
     c_global="$(git config -f "$hook_path" --bool --get git-hooks.global)" ||:
     if [[ -n "$c_global" && "$c_global" ]]; then
-        hooks_dir=${global_githooks_dir}
         c_global="-g"
+        hooks_dir=${global_githooks_dir}
     else
-        hooks_dir=${githooks_dir}
         c_global=""
+        hooks_dir=${githooks_dir}
     fi
 
     c_name="$(git config -f "$hook_path" --get git-hooks.collection)"
