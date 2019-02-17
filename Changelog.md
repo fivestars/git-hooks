@@ -1,17 +1,20 @@
 # Changelog
 
-## <next> - Add list-collection command
-*Date:*
+## 1.3.0 - Global sets, list-collection command, sync-collection fixes
+*Date:* 2019-02-17
 
-*Tags:*
+*Tags:* `v1.3.0`
 
 ### Features
-- Add list-collection command to enumerate and document available hook scripts in a collection
+- Add "global sets" of hooks to allow different repositories to use different sets of global hooks ([#25](https://github.com/fivestars/git-hooks/pull/25))
+- Add list-collection command to enumerate and display documentation available for hook scripts in a collection ([#26](https://github.com/fivestars/git-hooks/pull/26))
 
 ### Changes
-- Update documentation for git-hooks collection hook scripts
+- Update documentation for git-hooks collection hook scripts ([#26](https://github.com/fivestars/git-hooks/pull/26))
 
 ### Fixes
+- Fix implicit sync-collection to pull the latest collection updates once a week ([#24](https://github.com/fivestars/git-hooks/pull/24))
+- Fix function names so sh hook scripts don't error out ([#27](https://github.com/fivestars/git-hooks/pull/27))
 
 
 ## 1.2.0 - Allow unticketed work, manual updates, and access to included lib functions
@@ -34,6 +37,7 @@
 
 ### Fixes
 - Don't print branch name in `pre-commit/jira-protect-branch`
+
 
 ## 1.1.1 - Jira hooks fixes
 *Date:* 2019-01-14
