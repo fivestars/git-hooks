@@ -57,13 +57,13 @@ export c_reset
 # choose to not run your hooks in parallel, the output will not be buffered.
 #
 # For safety, you can check for parallel execution in your hook by calling
-# the "prevent-parallel" function. It checks the value of
+# the "prevent_parallel" function. It checks the value of
 # "git config hooks.<hook>.parallel" and exits with a non-zero exit code
 # if it is set to anything but 1.
 #
 #    Example:
 #        #!/usr/bin/env bash
-#        prevent-parallel   # Will fail the hook unless it is being run
+#        prevent_parallel   # Will fail the hook unless it is being run
 #                           # sequentially.
 #
 
@@ -72,8 +72,8 @@ CAPTURE=/tmp/capture.$$
 cat <<"EOF" >$CAPTURE
 #!/usr/bin/env bash
 
-function prevent-parallel {
-    if is-parallel; then
+function prevent_parallel {
+    if is_parallel; then
         printf "${c_value} ${c_error}%s${c_reset}\\n" "${0##*/}" "cannot be run as a parallel job: git config hooks.$HOOK.parallel is set"
         exit ${1:-1}
     fi
@@ -106,10 +106,10 @@ esac
 printf "${c_action}%s${c_reset}\\n" "[running ${HOOK}/${hook_name#*${HOOK}}]"
 
 # Store stdout and stderr, then redirect them to the buffer
-is-parallel && exec 11>&1 12>&2 &>$capture_outfile
+is_parallel && exec 11>&1 12>&2 &>$capture_outfile
 
-# Provide the prevent-parallel function to the hook scripts
-export -f prevent-parallel
+# Provide the prevent_parallel function to the hook scripts
+export -f prevent_parallel
 
 # Display input if requested
 if git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
@@ -122,7 +122,7 @@ fi
 trap "capture_on_exit" EXIT SIGHUP SIGINT SIGTERM
 
 # Call the wrapped script
-if is-parallel || git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
+if is_parallel || git config --get-regexp "hooks\.$HOOK\.showinput" true &>/dev/null; then
     echo "[output for ${hook_name}]"
 fi
 "$hook_path" "$@" 2>&1 # | sed "s|^|${hook_name}(out) \||g"
@@ -167,12 +167,12 @@ if [[ -z "$hooks" ]] && [[ -z "$missing" ]] && [[ -z "$nonexecutable" ]]; then
     exit
 fi
 
-function is-parallel {
+function is_parallel {
     local jobs
     jobs=$(git config "hooks.$HOOK.parallel")
     [[ -n $jobs && ($jobs == max || $jobs -gt 1) ]]
 }
-export -f is-parallel
+export -f is_parallel
 
 # Set a trap to display any buffered output and clean up our temp files
 # shellcheck disable=2064

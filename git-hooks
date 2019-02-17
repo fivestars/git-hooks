@@ -512,13 +512,13 @@ $(md '###')    Preventing parallel execution:
 $(md_no_indent_or_hash "
         If your script cannot be run in parallel with another of the same
         git hook family, you may enforce this by calling the exported function
-        $(md_inline_quotes 'prevent-parallel') from within your script.
+        $(md_inline_quotes 'prevent_parallel') from within your script.
 
         Example:
 ")
 $(md_block_monospace '
         #!/usr/bin/env bash
-        prevent-parallel   # Will exit the hook with a non-zero exit code
+        prevent_parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
 ')
 

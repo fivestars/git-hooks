@@ -351,10 +351,10 @@ A tool for managing and invoking custom git hook scripts.
 
 ```
 ###    Preventing parallel execution:
- If your script cannot be run in parallel with another of the same git hook family, you may enforce this by calling the exported function `prevent-parallel` from within your script.  Example:  
+ If your script cannot be run in parallel with another of the same git hook family, you may enforce this by calling the exported function `prevent_parallel` from within your script.  Example:  
 ```
         #!/usr/bin/env bash
-        prevent-parallel   # Will exit the hook with a non-zero exit code
+        prevent_parallel   # Will exit the hook with a non-zero exit code
                            # unless it is being run sequentially.
 
 ```
