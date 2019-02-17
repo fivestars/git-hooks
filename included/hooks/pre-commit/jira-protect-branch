@@ -6,9 +6,9 @@ Prevent accidental commits to protected branches
 DESC
 
 : <<HELP
-Mark branches as protected by adding them to a .protected file in the top-level
-repository directory. By default, only master is protected. Works well as a
-precursor to pre-commit-jira-branch-name.
+Mark branches as protected by adding them to a ${c_value}.protected${c_reset} file in the top-level
+repository directory. By default, only ${c_value}master${c_reset} is protected. This works well if
+run as a precursor to ${c_value}pre-commit/jira-branch-name${c_reset}.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)

@@ -5,14 +5,18 @@ set -eu -o pipefail
 Ensure your branch names contain a Jira issue id
 DESC
 
-: <<'HELP'
-Mark branches as protected by adding them to a .protected file in the top-level
-repository directory. By default, only master is protected. Works best if run
-after pre-commit-jira-protect-branch.
+: <<HELP
+This will not be applied to protected branches. Mark branches as protected by
+adding them to a ${c_value}.protected${c_reset} file in the top-level repository directory.
+By default, only ${c_value}master${c_reset} is protected. This works best if run after
+${c_value}pre-commit/jira-protect-branch${c_reset}.
 
-If running this as a standalone script, say through `git hooks run pre-commit-jira-branch-name`,
-one may provide any non-empty command-line parameter to force the branch creation flow (it will be
-otherwise ignored).
+If running this as a standalone script, say through
+
+    ${c_action}git hooks run pre-commit/jira-branch-name${c_reset}
+
+one may provide any non-empty command-line parameter to force the branch
+creation flow (it will be otherwise ignored).
 HELP
 
 # Get our useful functions

@@ -1,5 +1,19 @@
 # Changelog
 
+## <next> - Add list-collection command
+*Date:*
+
+*Tags:*
+
+### Features
+- Add list-collection command to enumerate and document available hook scripts in a collection
+
+### Changes
+- Update documentation for git-hooks collection hook scripts
+
+### Fixes
+
+
 ## 1.2.0 - Allow unticketed work, manual updates, and access to included lib functions
 *Date:* 2019-02-08
 
@@ -29,6 +43,7 @@
 ### Fixes
 - Fixed some issues in the Jira hooks that prevented the initial commit in a new repository
 
+
 ## 1.1.0 - Global hooks support and better Jira/Sentry integration
 *Date:* 2019-01-13
 
@@ -48,6 +63,7 @@
 ### Fixes
 - Fix is_protected_branch on mac
 - README.md improvements
+
 
 ## 1.0.0 - Initial release
 *Date:* 2018-09-18

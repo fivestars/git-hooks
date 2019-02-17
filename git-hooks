@@ -563,7 +563,7 @@ function git_hooks__git_hook_prefix {
 
 
 function git_hooks__extract_desc {
-    echo "$1 $(git_hooks__extract_doc -a "git_hooks_${1//-/_}" | sed 's/^\s*//g')"
+    echo "$1 $(type "git_hooks_${1//-/_}" | git_hooks__extract_doc -t ARGS | sed 's/^\s*//g')"
 }
 
 
@@ -571,25 +571,29 @@ function git_hooks__extract_help {
     local cmd
     while read -r cmd; do
         printf "\\n    %s\\n" "$(git_hooks__extract_desc "$cmd")"
-        git_hooks__extract_doc -h "git_hooks_${cmd//-/_}" | sed 's/^/    /g'
+        type "git_hooks_${cmd//-/_}" | git_hooks__extract_doc -t HELP | sed 's/^/    /g'
     done < <(grep "\$(git_hooks__extract_desc [-a-z]\\+)\$" "${bash_source}" | sed 's/.* \(.*\))/\1/g')
 }
 
 
 function git_hooks__extract_doc {
-    local doc_type
+    local doc_type do_eval=false doc
 
-    eval set -- "$($getopt -o ah -- "$@")"
+    eval set -- "$($getopt -o "t:e" -- "$@")"
     while [[ "$1" != -- ]]; do
         case "$1" in
-            -a) doc_type=ARGS; shift;;
-            -h) doc_type=HELP; shift;;
-            *) printf >&2 "${c_error}%s ${c_value}%s${c_reset}\\n" "Unrecognized option:" "$1"; return 1;;
+            -t) doc_type=$2; shift 2 ;;
+            -e) do_eval=true; shift ;;
         esac
     done
     shift
 
-    type "$1" | awk "NR==1,/<<-${doc_type}/{next}/^${doc_type}/,NR==0{next}{print}"
+    doc="$(awk "NR==1,/(<<-?${doc_type})|(<<-?'${doc_type}')/{next}/^${doc_type}/,NR==0{next}{print}")"
+    if "$do_eval"; then
+        eval "echo -e \"$doc\""
+    else
+        echo "$doc"
+    fi
 }
 
 
@@ -617,7 +621,7 @@ function git_hooks_help {
     if [[ -n ${1:-} ]]; then
         printf "git hooks %s\\n" "$(git_hooks__extract_desc "$1")"
         echo
-        git_hooks__extract_doc -h "git_hooks_${1//-/_}"
+        type "git_hooks_${1//-/_}" | git_hooks__extract_doc -t HELP
     else
         if [[ -t 1 ]]; then
             eval "echo \"$GITHOOKS_HELP\"" | less
@@ -786,6 +790,72 @@ function git_hooks_list_collections {
 			Source: ${c_location}
 
 			EOF
+        done
+    fi
+}
+
+
+
+
+
+function git_hooks_list_collection {
+    : <<-ARGS
+	    [-g|--global] <collection name>
+	ARGS
+    : <<-HELP
+	    List the hooks provided by the indicated collection.
+
+	    [-g|--global]:      Indicate that we should look in the global
+	                        scope for this collection.
+	HELP
+    local hooks_dir="$githooks_dir"
+
+    eval set -- "$($getopt -o g --long "global" -- "$@")"
+    while [[ $1 != -- ]]; do
+        case $1 in
+            -g|--global) hooks_dir="$global_githooks_dir"; shift;;
+        esac
+    done
+    shift
+
+    local git_hooks_config="${hooks_dir}/config"
+    local collections_path="${hooks_dir}/.collections"
+    local c_name="$1" c_location c_path c_subpath="."
+    local hook_name name
+    local -a paths=()
+    local -a names=()
+    local response="-"
+    local count=1
+    local doc
+
+    if [[ -d "$hooks_dir" ]]; then
+        c_location="$(git config -f "$git_hooks_config" --get "collection.${c_name}.location")"
+        c_path="${collections_path}/${c_name}"
+        c_subpath="$(git config -f "${c_path}/.git-hooks-collection" --get "collection.subpath")" ||:
+
+        for hook_name in "${git_hook_names[@]}"; do
+            while read -r path; do
+                name="${path##*${hook_name}}"
+                name="${name:1:${#name}}"
+                paths[${#paths[@]}]="$path"
+                names[${#names[@]}]="${hook_name}/${name}"
+                printf "${c_reset}%2s%s${c_action}%s${c_reset}%s\\n" "$((count++))" ") " "${hook_name}/${name}" ": $(git_hooks__extract_doc -e -t DESC <"$path")"
+            done < <(find "${c_path}/${c_subpath}" -maxdepth 2 -type f -path "*/${hook_name}*" -not -name "*~" -not -name ".preserve" | sort)
+        done
+
+        while [[ -n "$response" ]]; do
+            printf "\\n${c_prompt}%s${c_reset}" "Enter a number to see more info (leave blank to exit): "
+            read -r response
+            if [[ -n "$response" ]]; then
+                if [[ "$response" -le "${#paths[@]}" ]]; then
+                    printf "\\n${c_action}%s${c_reset}\\n\\n" "${names[$((response - 1))]}"
+                    git_hooks__extract_doc -e -t DESC <"${paths[$((response - 1))]}"
+                    printf "\\n"
+                    git_hooks__extract_doc -e -t HELP <"${paths[$((response - 1))]}"
+                else
+                    printf "${c_error}%s${c_reset}" "Invalid index"
+                fi
+            fi
         done
     fi
 }
@@ -1575,7 +1645,7 @@ function git_hooks__main {
             ;;
 
         # No special requirements
-        update|add-collection|list-collections|sync-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
+        update|add-collection|list-collections|sync-collection|list-collection|check-support|install-command|uninstall-command|install-template|uninstall-template|config|help|include)
             ;;
 
         *)  printf >&2 "${c_error}%s ${c_value}%s ${c_error}%s${c_reset}\\n" "git-hooks:" "$git_hooks_command" "is not a git-hooks command." >&2

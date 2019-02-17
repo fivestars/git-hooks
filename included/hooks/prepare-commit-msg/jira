@@ -5,18 +5,18 @@ set -eu -o pipefail
 Populate the commit message with a Jira ticket id
 DESC
 
-: <<HELP
-For commit messages that contain the '\$JIRA' string, this will derive the Jira
+: <<'HELP'
+For commit messages that contain the ${c_value}\$JIRA${c_reset} string, this will derive the Jira
 issue id from the branch name, or failing that, prompt the user to manually enter
 the issue id. It then applies that issue id to the commit message, substituting
-all '\$JIRA' instances with the issue id prior to prompting the user to edit the
+all ${c_value}\$JIRA${c_reset} instances with the issue id prior to prompting the user to edit the
 commit message.
 
 It will also attempt to pre-populate the message with the Jira ticket's summary
-and description if the '\$JIRA_SUMMARY' and/or '\$JIRA_DESC' placeholder strings are
+and description if the ${c_value}\$JIRA_SUMMARY${c_reset} and/or ${c_value}\$JIRA_DESC${c_reset} placeholder strings are
 in the commit message template.
 
-See .gitmessage.sample for example usage.
+See ${c_value}.gitmessage.sample${c_reset} for example usage.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)

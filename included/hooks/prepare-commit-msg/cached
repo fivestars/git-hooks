@@ -6,7 +6,7 @@ Restore a failed commit message, if present
 DESC
 
 : <<HELP
-If a previous commit at this HEAD fails due to a 'commit-msg-format' failure,
+If a previous commit at this ${c_value}HEAD${c_reset} fails due to a ${c_value}commit-msg-format${c_reset} failure,
 this hook will reload the failed message for usage/editing in the hooked commit.
 HELP
 

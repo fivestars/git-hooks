@@ -2,19 +2,19 @@
 set -eu -o pipefail
 
 : <<DESC
-Inject the commit message into a commit message template that contains the '\$SUBJECT' placeholder
+Inject the commit message into a commit message template
 DESC
 
-: <<HELP
-If the commit is using a message template (via "commit -t", or the
-"commit.template" config value) and the commit message was provided
-at the command-line with "-m <message>", use the template and substitute
-any '\$SUBJECT' placeholders in the template with the provided "<message>".
+: <<'HELP'
+If the commit is using a message template (via ${c_action}git commit -t${c_reset}, or the
+${c_value}commit.template${c_reset} config value) and the commit message was provided
+at the command-line with ${c_value}-m <message>${c_reset}, use the template and substitute
+any ${c_value}\$SUBJECT${c_reset} placeholders in the template with the provided ${c_value}<message>${c_reset}.
 
 If the template is not provided, or the template does not contain any
-'\$SUBJECT' placeholders, this hook will have no effect.
+${c_value}\$SUBJECT${c_reset} placeholders, this hook will have no effect.
 
-See .gitmessage.sample for example usage.
+See ${c_value}.gitmessage.sample${c_reset} for example usage.
 HELP
 
 # Get our useful functions (be sure to provide lib path as source argument)

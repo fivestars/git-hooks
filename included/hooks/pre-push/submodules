@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 : <<DESC
-Ensure that all submodule references have already been pushed to the remote origin.
+Ensure that all submodule references have already been pushed to the remote origin
 DESC
 
 
