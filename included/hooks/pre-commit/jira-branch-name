@@ -5,6 +5,10 @@ set -eu -o pipefail
 Ensure your branch names contain a Jira issue id
 DESC
 
+# Get our useful functions
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
 : <<HELP
 This will not be applied to protected branches. Mark branches as protected by
 adding them to a ${c_value}.protected${c_reset} file in the top-level repository directory.
@@ -19,9 +23,10 @@ one may provide any non-empty command-line parameter to force the branch
 creation flow (it will be otherwise ignored).
 HELP
 
-# Get our useful functions
-# shellcheck source=included/lib/jira.sh
-. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+if ! commit_in_progress; then
+    printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
+    exit 0
+fi
 
 branch=$(git symbolic-ref --short HEAD)
 if (( $# )); then

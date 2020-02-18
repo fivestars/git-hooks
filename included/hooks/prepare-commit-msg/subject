@@ -29,13 +29,14 @@ case "${2:-}" in
     # Look for commits with a message provided by -m at command-line.
     # This means git will not prompt us to further edit the message.
     message)
-        # Don't bother if this is a cherry-pick
-        if cherry_pick_in_progress; then
-            exit
+        # Don't bother if this is not a new commit
+        if ! commit_in_progress; then
+           printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
+           exit 0
         fi
 
         # We will need to manually apply the template, so let's verify that it exists
-        template="$(git config commit.template)" && [[ -f "$template" ]] || exit
+        template="$(eval echo "$(git config commit.template)")" && [[ -f "$template" ]] || exit
 
         # Read in the provided message
         read -r -d '' message <"$1" ||:
