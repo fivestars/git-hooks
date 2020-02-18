@@ -5,15 +5,15 @@ set -eu -o pipefail
 Prevent accidental commits to protected branches
 DESC
 
+# Get our useful functions (be sure to provide lib path as source argument)
+# shellcheck source=included/lib/jira.sh
+. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
+
 : <<HELP
 Mark branches as protected by adding them to a ${c_value}.protected${c_reset} file in the top-level
 repository directory. By default, only ${c_value}master${c_reset} is protected. This works well if
 run as a precursor to ${c_value}pre-commit/jira-branch-name${c_reset}.
 HELP
-
-# Get our useful functions (be sure to provide lib path as source argument)
-# shellcheck source=included/lib/jira.sh
-. "$(dirname "${BASH_SOURCE[@]}")/../../lib/jira.sh" "$(dirname "${BASH_SOURCE[@]}")/../../lib"
 
 if ! commit_in_progress; then
     printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
@@ -23,11 +23,14 @@ fi
 branch=$(git symbolic-ref --short HEAD)
 
 if is_protected_branch "$branch"; then
-    printf "${c_prompt}%s${c_reset}" "Do you really want to commit directly to protected branch \"$branch\"? ([y]es/[n]o): "
+    printf "${c_prompt}%s${c_value}%s${c_prompt}%s${c_reset}" "Do you really want to commit directly to protected branch " "$branch" "? ([y]es/[n]o): "
     read -r response
     case $response in
-        yes|y)  ;;
+        yes|y)
+            printf "${c_action}%s${c_value}%s${c_reset}\\n" "Committing to protected branch " "$branch"
+            ;;
         *)
+            printf "${c_action}%s${c_reset}\\n" "Committing to new branch"
             if [[ "${branch}" == "master" ]] && ! git rev-parse --verify --quiet master &>/dev/null; then
                 # This appears to be a brand new repository and we're commiting our first commit.
                 # Go ahead and create the branch so we can have a base for our new feature branch.
