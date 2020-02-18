@@ -42,17 +42,17 @@ function get_sentry_issue_link {
     # Extracts the sentry issue link from a Jira ticket's description content
     jq -r '.fields.description' \
         | head -n 1 \
-        | grep -E "https://sentry.io/.+/issues/[0-9]+"
+        | sed -E 's|^.*(https://sentry.io/.+/issues/[0-9]+).*$|\1|'
 }
 
 function get_sentry_issue_id {
     # Extracts the sentry issue id from the previously extracted sentry issue link
-    sed -E 's|^.*/issues/([0-9]+)/.*$|\1|'
+    sed -E 's|^.+/issues/([0-9]+).*$|\1|'
 }
 
 # Clear any existing Sentry issue links (and anything below them)
 tmpfile=$(mktemp -t sentry-issues.XXXX); trap 'rm -f $tmpfile' EXIT
-sed '/Resolved Sentry Issues/,$d' "$commit_msg" > "$tmpfile"
+sed -E "/Sentry issues resolved/,\$d" "$commit_msg" > "$tmpfile"
 cp "$tmpfile" "$commit_msg"
 
 found_sentry_issues=false
@@ -67,10 +67,10 @@ for jira_issue in $(grep -E "^(\\[)?[A-Z]+-[0-9]+(\\])?" "$commit_msg" | sed -E 
             found_sentry_issues=true
             cat >>"$commit_msg" <<-EOF
 
-			Resolved Sentry Issues
-			----------------------
+			**Sentry issues resolved:**
+			**********************
 			EOF
         fi
-        echo >>"$commit_msg" "Fixes ${sentry_issue_short_id} [(sentry)](${sentry_issue_link}) [(jira)]($(jira_get_issue_url "${jira_issue}"))"
+        echo >>"$commit_msg" "Fixes ${sentry_issue_short_id} [(link)](${sentry_issue_link})"
     fi
 done
