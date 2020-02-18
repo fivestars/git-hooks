@@ -138,17 +138,22 @@ case "$subject_msg" in
         ;;
 esac
 
-# Check message body line length
-message_line_len=100
-long_line_regex="$(git config --get hooks.jira-format.long-line-regex)" ||:
-if [[ $(grep -vE "${long_line_regex:-^\$}" "$commit_msg" | awk '{print length}' | sort -nr | head -n 1) -gt "$message_line_len" ]]; then
-    printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message contains lines longer than " "$message_line_len" " characters"
-    printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
-    while read -r line; do
-        printf "%s${c_error}%s${c_reset}\\n" "${line:0:${message_line_len}}" "${line:${message_line_len}:${#line}}"
-    done < <(tail -n +2 <"$commit_msg")
-    printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
-    success=false
+# Check that the issue was typed in by a human
+# Automatically created tickets get a pass on their line-length restriction (eg. Sentry)
+if [[ "$(jira_get_issue "${jira_issue:1:-2}" | jq -r .fields.creator.accountType)" == "atlassian" ]]; then
+    # Check message body line length
+    message_line_len=100
+    long_line_regex="$(git config --get hooks.jira-format.long-line-regex)" ||:
+    # Omit the markdown link syntax from the line-length calculation
+    if [[ $(sed -E "s/\\[(.+)\\]\\(.+\\)/\\1/g" "$commit_msg" | grep -vE "${long_line_regex:-^\$}" | awk '{print length}' | sort -nr | head -n 1) -gt "$message_line_len" ]]; then
+        printf "${c_error}%s${c_value}%s${c_error}%s${c_reset}\\n" "Commit message contains lines longer than " "$message_line_len" " characters"
+        printf "${c_error}%s${c_reset}\\n" "===================================================================================================="
+        while read -r line; do
+            printf "%s${c_error}%s${c_reset}\\n" "${line:0:${message_line_len}}" "${line:${message_line_len}:${#line}}"
+        done < <(tail -n +2 <"$commit_msg")
+        printf "${c_error}%s${c_reset}\\n\\n" "===================================================================================================="
+        success=false
+    fi
 fi
 
 $success
