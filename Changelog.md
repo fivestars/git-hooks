@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0 - General fixes and improvements to the core tool and several hooks
+*Date:* 2020-02-18
+
+*Tags:* `v1.4.0`
+
+### Features
+*No new features*
+
+### Changes
+- `[commit-msg/jira-format]` Don't apply message body formatting rules if tickets was generated from automated tooling ([#30](https://github.com/fivestars/git-hooks/pull/30))
+- `[commit-msg/jira-format]` Omit Markdown link syntax from line-length consideration ([#30](https://github.com/fivestars/git-hooks/pull/30))
+- `[prepare-commit-msg/jira]` Automatically translate Jira links and `{code}` blocks to their Markdown analogue ([#32](https://github.com/fivestars/git-hooks/pull/32))
+- `[prepare-commit-msg/jira]` Do not fold a line to prescribed length if Jira issue was created by an automated integration ([#32](https://github.com/fivestars/git-hooks/pull/32))
+- `[pre-commit/jira-branch-name, pre-commit/jira-protect-branch, prepare-commit-msg/subject]` Improved syntax highlighting and CLI output ([#33](https://github.com/fivestars/git-hooks/pull/33))
+
+### Fixes
+- Use the correct `$githooks_dir` when running the `git hooks include` command without the `-g` flag ([#31](https://github.com/fivestars/git-hooks/pull/31))
+- `[commit-msg/add-sentry-issues]` Correctly extract the Sentry issue link and use it in commit message augmentation ([#34](https://github.com/fivestars/git-hooks/pull/34))
+
+
 ## 1.3.0 - Global sets, list-collection command, sync-collection fixes
 *Date:* 2019-02-17
 
