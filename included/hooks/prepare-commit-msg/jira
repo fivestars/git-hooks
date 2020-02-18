@@ -36,7 +36,13 @@ case "${2:-}" in
     template) ;;
 
     # Message was provided via -m or -F
-    message) ;;
+    message)
+        # Don't bother if this is not a new commit
+        if ! commit_in_progress; then
+           printf "${c_action}%s${c_reset}\\n" "Not a new commit, nothing to be done"
+           exit 0
+        fi
+        ;;
 
     ## Unhandled commit types:
     # This is a merge commit message
@@ -119,16 +125,29 @@ if grep -q "\$JIRA\\|\${JIRA}" "$1"; then
         # Get the ticket info from the Jira api
         if jira_issue="$(jira_get_issue "$jira_ticket")"; then
             jira_summary="$(jq -r .fields.summary <<<"${jira_issue}")"
-            jira_description="$(jq -r .fields.description <<<"${jira_issue}" | fold -sw 100)"
+            jira_description="$(jq -r .fields.description <<<"${jira_issue}")"
+            jira_creator_type="$(jq -r .fields.creator.accountType <<<"${jira_issue}")"
 
             # Populate the summary and description with the values pulled from the Jira ticket
             printf "${c_action}%s ${c_value}%s${c_reset}\\n" "Populating commit message from ticket" "$jira_ticket"
             JIRA_SUMMARY="${jira_summary:-}" JIRA_DESC="${jira_description:-}" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
             cp "$tmpfile" "$1"
 
-            # Replace Jira markup for monospace with markdown
-            sed -e 's/{{/`/g' -e 's/}}/`/g' "$1" >"$tmpfile"
+            # Markdownify Jira links
+            sed -E "s/\\[(.+)\\|(.+)\\]/[\\1](\\2)/g" "$1" >"$tmpfile"
             cp "$tmpfile" "$1"
+
+            # Replace Jira markup for monospace with markdown
+            sed -e 's/{{/`/g' -e 's/}}/`/g' -e "s/{code}/'''/g" "$1" >"$tmpfile"
+            cp "$tmpfile" "$1"
+
+            # Check that the issue was typed in by a human
+            # Automatically created tickets get a pass on their formatting (eg. Sentry)
+            if [[ "$jira_creator_type" == "atlassian" ]]; then
+                # Wrap the lines at 100 chars
+                fold -sw 100 "$1" >"$tmpfile"
+                cp "$tmpfile" "$1"
+            fi
         else
             printf "${c_error}%s${c_reset}\\n" "Failed to lookup Jira ticket, cannot auto-populate message"
             JIRA_SUMMARY="" JIRA_DESC="" envsubst "\$JIRA_SUMMARY \$JIRA_DESC" <"$1" >"$tmpfile"
