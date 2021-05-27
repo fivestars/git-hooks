@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+# Ensure we are being invoked from a terminal (ie. tty)
+# We use stdout since git usually doesn't hook a tty up to stdin in the first place.
+[[ -t 1 ]] || exit
+
 # Determine which git hook is being run and make sure we're not accidentally
 # being called from another multiplexer script.
 # shellcheck disable=2155
