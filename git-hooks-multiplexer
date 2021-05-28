@@ -6,7 +6,7 @@ set -eu -o pipefail
 # first place and it seems to specifically hook one up to stdout.
 # Hopefully automated scripts attempt to capture stderr and as such
 # it wouldn't be a tty - meaning we shouldn't attempt to run the hooks.
-[[ -t 2 ]] || exit
+[[ -t 2 ]] || exit 0
 
 # Determine which git hook is being run and make sure we're not accidentally
 # being called from another multiplexer script.
