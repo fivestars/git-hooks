@@ -338,7 +338,7 @@ function jira_ensure_access () {
     curl_user="$(git config jira.username):$(git config jira.api-token)"
     myself_uri="https://$(git config jira.hostname)/rest/api/2/myself"
 
-    if curl -Ssf -u "$curl_user" "$myself_uri" &>/dev/null; then
+    if curl -Ssf -u "$curl_user" "$myself_uri" >/dev/null; then
         if "$invalid"; then
             printf "${c_good}%s${c_reset}\\n\\n" "Jira configuration complete"
         fi
@@ -428,4 +428,3 @@ function jira_ensure_configuration_apitoken () {
         esac
     fi
 }
-
