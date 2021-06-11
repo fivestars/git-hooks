@@ -416,7 +416,7 @@ function jira_ensure_configuration_apitoken () {
     if ! api_token="$(git config jira.api-token 2>/dev/null)" || "$invalid"; then
         if [[ -z "${api_token:-}" ]]; then
             printf "    ${c_action}%s${c_reset}\\n" "Create a Jira API token"
-            open_uri "https://id.atlassian.com/manage/api-tokens"
+            open_uri "https://jira.fivestars.com/plugins/servlet/de.resolution.apitokenauth/admin"
         fi
 
         prompt_with_default_value "Enter your Jira api token" "${api_token:-}"
