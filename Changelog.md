@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0 - Update Jira urls
+*Date:* 2021-06-14
+
+*Tags:* `v1.5.0`
+
+### Features
+*No new features*
+
+### Changes
+- Update Jira urls to point at our new Jira instance
+
+### Fixes
+- Do not suppress curl stderr output when making Jira API calls
+
 ## 1.4.0 - General fixes and improvements to the core tool and several hooks
 *Date:* 2020-02-18
 
