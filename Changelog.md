@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.0 - Update Jira urls
+*Date:* 2022-02-24
+
+*Tags:* `v1.6~~~~.0`
+
+### Features
+*No new features*
+
+### Changes
+- Update Jira urls to point at our new SumUp instance
+
+### Fixes
+*No fixes*
+
 ## 1.5.0 - Update Jira urls
 *Date:* 2021-06-14
 
